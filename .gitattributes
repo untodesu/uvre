@@ -1,3 +1,1 @@
-# I believe GLAD headers should not be
-# detected as an integral part of the project.
-src_gl/glad/* linguist-detectable=false
+src_gl/glad/* linguist-documentation

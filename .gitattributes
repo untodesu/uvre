@@ -1,4 +1,3 @@
-*.c text linguist-language=C++
-*.cpp text linguist-language=C++
-*.h text linguist-language=C++
-*.hpp text linguist-language=C++
+# I believe GLAD headers should not be
+# detected as an integral part of the project.
+src_gl/glad/* linguist-detectable=false

@@ -94,7 +94,7 @@ uvre::shader *uvre::GLRenderDevice::createShader(const uvre::shader_info &info)
 {
     std::stringstream ss;
     ss << "#version 460 core\n";
-    ss << "#define UVRE_SOURCE\n";
+    ss << "#define UVRE_SOURCE 1\n";
 
     uint32_t stage = 0;
     uint32_t stage_bit = 0;

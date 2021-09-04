@@ -55,10 +55,9 @@ static const char *vert_src =
 static const char *frag_src =
     "layout(location = 0) in vec2 texcoord;\n"
     "layout(location = 0) out vec4 target;\n"
-    "layout(binding = 0) uniform sampler2D samp;\n"
     "void main()\n"
     "{\n"
-    "target = texture(samp, texcoord) * vec4(texcoord, 1.0, 1.0);\n"
+    "target = vec4(texcoord, 1.0, 1.0);\n"
     "}\n";
 
 int main(int argc, char **argv)
@@ -123,9 +122,9 @@ int main(int argc, char **argv)
 
     using vec2_t = float[2];
     const vec2_t vertices[3 * 2] = {
-        { -0.5f, -0.5f }, { 0.0f, 1.0f },
-        {  0.0f,  0.5f }, { 0.5f, 0.0f },
-        {  0.5f, -0.5f }, { 1.0f, 1.0f }
+        { -0.8f, -0.8f }, { 0.0f, 1.0f },
+        {  0.0f,  0.8f }, { 0.5f, 0.0f },
+        {  0.8f, -0.8f }, { 1.0f, 1.0f }
     };
 
     uvre::buffer_info ibo_info = {};
@@ -175,8 +174,8 @@ int main(int argc, char **argv)
     uvre::texture_info color_info = {};
     color_info.type = uvre::texture_type::TEXTURE_2D;
     color_info.format = uvre::pixel_format::R16G16B16_UNORM;
-    color_info.width = 200;
-    color_info.height = 150;
+    color_info.width = 400;
+    color_info.height = 300;
 
     uvre::color_attachment attachment;
     attachment.id = 0;
@@ -189,27 +188,6 @@ int main(int argc, char **argv)
     target_info.color_attachments = &attachment;
 
     uvre::rendertarget *target = device->createRenderTarget(target_info);
-
-    uvre::sampler_info sampler_info = {};
-    sampler_info.flags = uvre::SAMPLER_CLAMP_S | uvre::SAMPLER_CLAMP_T | uvre::SAMPLER_FILTER;
-
-    uvre::sampler *sampler = device->createSampler(sampler_info);
-
-    std::mt19937_64 mtdev(static_cast<uint_fast64_t>(std::time(nullptr)));
-    std::uniform_int_distribution<std::uint8_t> id;
-    std::uint8_t *tex_data = new std::uint8_t[64 * 64 * 3];
-    for(std::size_t i = 0; i < 64 * 64 * 3; i++)
-        tex_data[i] = id(mtdev);
-
-    uvre::texture_info texture_info = {};
-    texture_info.type = uvre::texture_type::TEXTURE_2D;
-    texture_info.format = uvre::pixel_format::R8G8B8_UNORM;
-    texture_info.width = 64;
-    texture_info.height = 64;
-
-    uvre::texture *texture = device->createTexture(texture_info);
-    device->writeTexture2D(texture, 0, 0, 64, 64, uvre::pixel_format::R8G8B8_UINT, tex_data);
-    delete[] tex_data;
 
     for(;;) {
         bool should_quit = false;
@@ -229,21 +207,19 @@ int main(int argc, char **argv)
         device->startRecording(commands);
 
         commands->bindRenderTarget(target);
-        commands->setViewport(uvre::rect { 0, 0, 200, 150 });
+        commands->setViewport(uvre::rect { 0, 0, 400, 300 });
         commands->clearColor3f(0.0f, 0.0f, 0.0f);
         commands->clear(uvre::RT_COLOR_BUFFER);
         commands->bindPipeline(pl);
         commands->bindIndexBuffer(ibo);
         commands->bindVertexBuffer(vbo);
-        commands->bindSampler(sampler, 0);
-        commands->bindTexture(texture, 0);
         commands->idraw(3, 1, 0, 0, 0);
 
         commands->bindRenderTarget(nullptr);
         commands->setViewport(uvre::rect { 0, 0, 800, 600 });
-        commands->clearColor3f(0.0f, 0.0f, 0.25f);
+        commands->clearColor3f(0.0f, 0.0f, 1.0f);
         commands->clear(uvre::RT_COLOR_BUFFER);
-        commands->copyRenderTarget(target, nullptr, uvre::rect { 0, 0, 200, 150 }, uvre::rect { 50, 50, 750, 550 }, uvre::RT_COLOR_BUFFER, false);
+        commands->copyRenderTarget(target, nullptr, uvre::rect { 0, 0, 400, 300 }, uvre::rect { 50, 50, 750, 550 }, uvre::RT_COLOR_BUFFER, true);
 
         device->submit(commands);
 

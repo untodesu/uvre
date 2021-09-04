@@ -9,4 +9,4 @@ if(NOT SDL2_FOUND)
 endif()
 
 add_executable(test "${CMAKE_CURRENT_LIST_DIR}/test.cpp")
-target_link_libraries(test PRIVATE ${UVRE_TARGET} ${SDL2_LIBRARY})
+target_link_libraries(test PRIVATE UVRE ${SDL2_LIBRARY})

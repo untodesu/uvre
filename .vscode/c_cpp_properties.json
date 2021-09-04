@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "default",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/src_gl/glad/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "cppStandard": "c++17",
+            "cStandard": "c99"
+        }
+    ],
+    "version": 4
+}

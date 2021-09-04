@@ -4,13 +4,16 @@
             "name": "default",
             "includePath": [
                 "${default}",
+                "${workspaceFolder}/examples/glfw/include",
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/src_gl/glad/include"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
-                "_UNICODE"
+                "_UNICODE",
+                "GLFW_INCLUDE_NONE",
+                "UVRE_STATIC"
             ],
             "cppStandard": "c++17",
             "cStandard": "c99"

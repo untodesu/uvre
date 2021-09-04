@@ -14,7 +14,7 @@ static GLADapiproc getProcAddrWrap(void *arg, const char *procname)
     return reinterpret_cast<GLADapiproc>(info->gl_getProcAddr(procname));
 }
 
-void UVRE_API uvre::pollApiInfo(uvre::api_info &info)
+UVRE_API void uvre::pollApiInfo(uvre::api_info &info)
 {
     info.is_gl = true;
     info.gl.core_profile = true;
@@ -22,7 +22,7 @@ void UVRE_API uvre::pollApiInfo(uvre::api_info &info)
     info.gl.version_minor = 6;
 }
 
-uvre::IRenderDevice *UVRE_API uvre::createDevice(const uvre::device_info &info)
+UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::device_info &info)
 {
     if(!info.gl_swapInterval || !info.gl_swapBuffers || !info.gl_makeCurrent || !info.gl_getProcAddr)
         return nullptr;
@@ -44,7 +44,7 @@ uvre::IRenderDevice *UVRE_API uvre::createDevice(const uvre::device_info &info)
     return nullptr;
 }
 
-void UVRE_API uvre::destroyDevice(uvre::IRenderDevice *device)
+UVRE_API void uvre::destroyDevice(uvre::IRenderDevice *device)
 {
     delete device;
 }

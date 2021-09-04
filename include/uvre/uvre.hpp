@@ -226,7 +226,7 @@ struct pipeline_info final {
     size_t num_vertex_attribs;
     const vertex_attrib *vertex_attribs;
     size_t num_shaders;
-    const shader **shaders;
+    shader **shaders;
 };
 
 struct buffer_info final {
@@ -342,7 +342,7 @@ public:
     virtual void mode(int width, int height) = 0;
 };
 
-void UVRE_API pollApiInfo(api_info &info);
-IRenderDevice *createDevice(const device_info &info);
-void destroyDevice(IRenderDevice *device);
+UVRE_API void pollApiInfo(api_info &info);
+UVRE_API IRenderDevice *createDevice(const device_info &info);
+UVRE_API void destroyDevice(IRenderDevice *device);
 } // namespace uvre

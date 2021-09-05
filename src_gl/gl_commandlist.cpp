@@ -20,9 +20,9 @@ static inline uint32_t getTargetMask(uvre::rendertarget_mask mask)
     return result;
 }
 
-uvre::GLCommandList::GLCommandList(uvre::GLRenderDevice *owner) : owner(owner), bound_pipeline(&owner->null_pipeline)
+uvre::GLCommandList::GLCommandList(uvre::GLRenderDevice *owner)
+    : owner(owner), bound_pipeline(&owner->null_pipeline)
 {
-
 }
 
 void uvre::GLCommandList::setScissor(int x, int y, int width, int height)

@@ -12,22 +12,22 @@
 #include <functional>
 
 #if defined(_MSC_VER)
-#if defined(UVRE_SHARED)
-#define UVRE_API __declspec(dllexport)
-#elif defined(UVRE_STATIC)
-#define UVRE_API
-#else
-#define UVRE_API __declspec(dllimport)
-#endif
+#    if defined(UVRE_SHARED)
+#        define UVRE_API __declspec(dllexport)
+#    elif defined(UVRE_STATIC)
+#        define UVRE_API
+#    else
+#        define UVRE_API __declspec(dllimport)
+#    endif
 #elif defined(__GNUC__)
-#if defined(UVRE_SHARED)
-#define UVRE_API __attribute__((visibility("default")))
+#    if defined(UVRE_SHARED)
+#        define UVRE_API __attribute__((visibility("default")))
+#    else
+#        define UVRE_API
+#    endif
 #else
-#define UVRE_API
-#endif
-#else
-#warning Unknown compiler!
-#define UVRE_API
+#    warning Unknown compiler!
+#    define UVRE_API
 #endif
 
 namespace uvre
@@ -39,9 +39,9 @@ struct sampler;
 struct texture;
 struct rendertarget;
 
+using std::size_t;
 using std::uint16_t;
 using std::uint32_t;
-using std::size_t;
 
 using index16 = uint16_t;
 using index32 = uint32_t;
@@ -312,7 +312,7 @@ public:
     virtual void bindRenderTarget(rendertarget *target) = 0;
 
     virtual void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter) = 0;
-    
+
     virtual void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance) = 0;
     virtual void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance) = 0;
 };

@@ -6,13 +6,13 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#include <algorithm>
-#include <limits>
-#include <glad/gl.h>
 #include <uvre/uvre.hpp>
-#include <vector>
-#include <string>
+#include <algorithm>
+#include <glad/gl.h>
+#include <limits>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace uvre
 {
@@ -113,7 +113,7 @@ public:
     void bindRenderTarget(rendertarget *target);
 
     void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter);
-    
+
     void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance);
     void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance);
 

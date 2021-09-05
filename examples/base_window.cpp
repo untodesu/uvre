@@ -6,10 +6,10 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <uvre/uvre.hpp>
 #include <GLFW/glfw3.h>
 #include <exception>
 #include <iostream>
-#include <uvre/uvre.hpp>
 
 // GLFW error callback
 static void onGlfwError(int, const char *message)
@@ -119,7 +119,7 @@ int main()
 
         // Prepare the state to a new frame
         device->prepare();
-        
+
         // Begin recording drawing commands
         // This does nothing for OpenGL.
         device->startRecording(commands);

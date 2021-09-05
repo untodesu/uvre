@@ -8,14 +8,14 @@
  */
 #include "gl_private.hpp"
 
-
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
 {
     const uvre::device_info *info = reinterpret_cast<const uvre::device_info *>(arg);
     info->onMessage(message);
 }
 
-uvre::GLRenderDevice::GLRenderDevice(const uvre::device_info &info) : info(info), vbos(nullptr), null_pipeline(), shaders(), pipelines(), buffers(), samplers(), textures(), rendertargets(), commandlists()
+uvre::GLRenderDevice::GLRenderDevice(const uvre::device_info &info)
+    : info(info), vbos(nullptr), null_pipeline(), shaders(), pipelines(), buffers(), samplers(), textures(), rendertargets(), commandlists()
 {
     glCreateBuffers(1, &idbo);
     glNamedBufferData(idbo, static_cast<GLsizeiptr>(sizeof(uvre::drawcmd)), nullptr, GL_DYNAMIC_DRAW);
@@ -33,7 +33,7 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::device_info &info) : info(info)
     null_pipeline.index = GL_UNSIGNED_SHORT;
     null_pipeline.primitive = GL_LINE_STRIP;
     null_pipeline.fill = GL_LINE;
-    
+
     if(this->info.onMessage) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -349,10 +349,10 @@ static inline uint32_t getFillMode(uvre::fill_mode mode)
 uvre::pipeline *uvre::GLRenderDevice::createPipeline(const uvre::pipeline_info &info)
 {
     uvre::pipeline *pipeline = new uvre::pipeline;
-    
+
     glCreateProgramPipelines(1, &pipeline->ppobj);
     glCreateVertexArrays(1, &pipeline->vaobj);
-    
+
     pipeline->blending.enabled = info.blending.enabled;
     pipeline->blending.equation = getBlendEquation(info.blending.equation);
     pipeline->blending.sfactor = getBlendFunc(info.blending.sfactor);
@@ -367,7 +367,7 @@ uvre::pipeline *uvre::GLRenderDevice::createPipeline(const uvre::pipeline_info &
     pipeline->fill = getFillMode(info.fill);
     pipeline->vertex_stride = info.vertex_stride;
     pipeline->attributes = std::vector<uvre::vertex_attrib>(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs);
-    
+
     for(const uvre::vertex_attrib &attrib : pipeline->attributes) {
         glEnableVertexArrayAttrib(pipeline->vaobj, attrib.id);
         glVertexArrayAttribFormat(pipeline->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));

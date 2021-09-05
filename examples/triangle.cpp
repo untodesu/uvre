@@ -6,10 +6,10 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <uvre/uvre.hpp>
 #include <GLFW/glfw3.h>
 #include <exception>
 #include <iostream>
-#include <uvre/uvre.hpp>
 
 using vec2_t = float[2];
 struct vertex final {
@@ -175,8 +175,8 @@ int main()
     // The coordinates are NDC.
     const vertex vertices[3] = {
         vertex { { -0.8f, -0.8f }, { 0.0f, 1.0f } },
-        vertex { {  0.0f,  0.8f }, { 0.5f, 0.0f } },
-        vertex { {  0.8f, -0.8f }, { 1.0f, 1.0f } },
+        vertex { { 0.0f, 0.8f }, { 0.5f, 0.0f } },
+        vertex { { 0.8f, -0.8f }, { 1.0f, 1.0f } },
     };
 
     // Vertex buffer creation info.
@@ -207,7 +207,7 @@ int main()
     uvre::rendertarget_info target_info = {};
     target_info.num_color_attachments = 1;
     target_info.color_attachments = &color_attachment;
-    
+
     // Create the render target
     uvre::rendertarget *target = device->createRenderTarget(target_info);
 
@@ -216,7 +216,7 @@ int main()
     while(!glfwWindowShouldClose(window)) {
         // Prepare the state to a new frame
         device->prepare();
-        
+
         // Begin recording drawing commands
         // This does nothing for OpenGL.
         device->startRecording(commands);

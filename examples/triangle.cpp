@@ -76,8 +76,8 @@ int main()
 #endif
     }
 
-    constexpr const int WINDOW_WIDTH = 800;
-    constexpr const int WINDOW_HEIGHT = 600;
+    constexpr const int WINDOW_WIDTH = 1280;
+    constexpr const int WINDOW_HEIGHT = 960;
 
     // Open a new window
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "UVRE - Triangle", nullptr, nullptr);

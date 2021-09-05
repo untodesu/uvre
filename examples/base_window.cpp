@@ -74,14 +74,15 @@ int main()
 
     // OpenGL-specific callbacks
     if(backend_info.family == uvre::backend_family::OPENGL) {
-        device_info.gl.getProcAddr = [&](const char *procname) { return reinterpret_cast<uvre::device_info::procaddr>(glfwGetProcAddress(procname)); };
-        device_info.gl.makeContextCurrent = [&]() { glfwMakeContextCurrent(window); };
-        device_info.gl.setSwapInterval = [&](int interval) { glfwSwapInterval(interval); };
-        device_info.gl.swapBuffers = [&]() { glfwSwapBuffers(window); };
+        device_info.gl.user_data = window;
+        device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
+        device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
+        device_info.gl.setSwapInterval = [](void *, int interval) { glfwSwapInterval(interval); };
+        device_info.gl.swapBuffers = [](void *arg) { glfwSwapBuffers(reinterpret_cast<GLFWwindow *>(arg)); };
     }
 
     // Message callback
-    device_info.onMessage = [&](const char *message) { std::cerr << message << std::endl; };
+    device_info.onMessage = [](const char *message) { std::cerr << message << std::endl; };
 
     // Now we create the rendering device.
     // Rendering device is an object that works

@@ -9,7 +9,6 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 
 #if defined(_MSC_VER)
 #    if defined(UVRE_SHARED)
@@ -281,14 +280,14 @@ struct backend_info final {
 };
 
 struct device_info final {
-    using procaddr = void *;
     struct {
-        std::function<procaddr(const char *)> getProcAddr;
-        std::function<void()> makeContextCurrent;
-        std::function<void(int)> setSwapInterval;
-        std::function<void()> swapBuffers;
+        void *user_data;
+        void*(*getProcAddr)(void *user_data, const char *procname);
+        void(*makeContextCurrent)(void *user_data);
+        void(*setSwapInterval)(void *user_data, int interval);
+        void(*swapBuffers)(void *user_data);
     } gl;
-    std::function<void(const char *)> onMessage;
+    void(*onMessage)(const char *message);
 };
 
 class ICommandList {

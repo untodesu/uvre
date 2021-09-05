@@ -172,6 +172,10 @@ enum class depth_func {
     GREATER_OR_EQUAL
 };
 
+enum class backend_family {
+    OPENGL
+};
+
 using rendertarget_mask = uint16_t;
 static constexpr const rendertarget_mask RT_COLOR_BUFFER = (1 << 0);
 static constexpr const rendertarget_mask RT_DEPTH_BUFFER = (1 << 1);
@@ -259,22 +263,24 @@ struct rendertarget_info final {
     const color_attachment *color_attachments;
 };
 
-struct device_info final {
-    using proc = void *;
-    std::function<void(int)> gl_swapInterval;
-    std::function<void()> gl_swapBuffers;
-    std::function<void()> gl_makeCurrent;
-    std::function<proc(const char *)> gl_getProcAddr;
-    std::function<void(const char *)> onMessage;
-};
-
-struct api_info final {
-    bool is_gl;
+struct backend_info final {
+    backend_family family;
     struct {
         bool core_profile;
         int version_major;
         int version_minor;
     } gl;
+};
+
+struct device_info final {
+    using procaddr = void *;
+    struct {
+        std::function<procaddr(const char *)> getProcAddr;
+        std::function<void()> makeContextCurrent;
+        std::function<void(int)> setSwapInterval;
+        std::function<void()> swapBuffers;
+    } gl;
+    std::function<void(const char *)> onMessage;
 };
 
 class ICommandList {
@@ -342,7 +348,7 @@ public:
     virtual void mode(int width, int height) = 0;
 };
 
-UVRE_API void pollApiInfo(api_info &info);
+UVRE_API void pollBackendInfo(backend_info &info);
 UVRE_API IRenderDevice *createDevice(const device_info &info);
 UVRE_API void destroyDevice(IRenderDevice *device);
 } // namespace uvre

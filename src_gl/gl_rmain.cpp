@@ -11,12 +11,12 @@
 static GLADapiproc getProcAddrWrap(void *arg, const char *procname)
 {
     const uvre::device_info *info = reinterpret_cast<const uvre::device_info *>(arg);
-    return reinterpret_cast<GLADapiproc>(info->gl_getProcAddr(procname));
+    return reinterpret_cast<GLADapiproc>(info->gl.getProcAddr(procname));
 }
 
-UVRE_API void uvre::pollApiInfo(uvre::api_info &info)
+UVRE_API void uvre::pollBackendInfo(uvre::backend_info &info)
 {
-    info.is_gl = true;
+    info.family = uvre::backend_family::OPENGL;
     info.gl.core_profile = true;
     info.gl.version_major = 4;
     info.gl.version_minor = 6;
@@ -24,23 +24,17 @@ UVRE_API void uvre::pollApiInfo(uvre::api_info &info)
 
 UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::device_info &info)
 {
-    if(!info.gl_swapInterval || !info.gl_swapBuffers || !info.gl_makeCurrent || !info.gl_getProcAddr)
+    if(!info.gl.setSwapInterval || !info.gl.swapBuffers || !info.gl.makeContextCurrent || !info.gl.getProcAddr)
         return nullptr;
 
-    info.gl_makeCurrent();
+    info.gl.makeContextCurrent();
 
-    // Attempt #1: use C++ API
-    GLADloadfunc loadfunc = reinterpret_cast<GLADloadfunc>(info.gl_getProcAddr.target<GLADloadfunc>());
-    if(loadfunc && gladLoadGL(loadfunc))
-        return new uvre::GLRenderDevice(info);
-
-    // Attempt #2: wrap the C++ API in a C function
     uvre::device_info hack_info = info;
     GLADuserptrloadfunc loadfunc_u = reinterpret_cast<GLADuserptrloadfunc>(getProcAddrWrap);
-    if(gladLoadGLUserPtr(loadfunc_u, reinterpret_cast<void *>(&hack_info)))
+    if(gladLoadGLUserPtr(loadfunc_u, &hack_info))
         return new uvre::GLRenderDevice(info);
 
-    // We are doomed!!!    
+    // We are doomed!!!
     return nullptr;
 }
 

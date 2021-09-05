@@ -55,8 +55,8 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::api_info api_info;
-    uvre::pollApiInfo(api_info);
+    uvre::backend_info backend_info;
+    uvre::pollBackendInfo(backend_info);
 
     // Do not require any client API by default
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -65,11 +65,11 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     // If the backend API is OpenGL-ish
-    if(api_info.is_gl) {
+    if(backend_info.family == uvre::backend_family::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, api_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, api_info.gl.version_major);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, api_info.gl.version_minor);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, backend_info.gl.version_minor);
 
 #if defined(__APPLE__)
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
@@ -90,11 +90,11 @@ int main()
     uvre::device_info device_info = {};
 
     // OpenGL-specific callbacks
-    if(api_info.is_gl) {
-        device_info.gl_swapInterval = [&](int interval) { glfwSwapInterval(interval); };
-        device_info.gl_swapBuffers = [&]() { glfwSwapBuffers(window); };
-        device_info.gl_makeCurrent = [&]() { glfwMakeContextCurrent(window); };
-        device_info.gl_getProcAddr = [&](const char *procname) { return reinterpret_cast<uvre::device_info::proc>(glfwGetProcAddress(procname)); };
+    if(backend_info.family == uvre::backend_family::OPENGL) {
+        device_info.gl.getProcAddr = [&](const char *procname) { return reinterpret_cast<uvre::device_info::procaddr>(glfwGetProcAddress(procname)); };
+        device_info.gl.makeContextCurrent = [&]() { glfwMakeContextCurrent(window); };
+        device_info.gl.setSwapInterval = [&](int interval) { glfwSwapInterval(interval); };
+        device_info.gl.swapBuffers = [&]() { glfwSwapBuffers(window); };
     }
 
     // Message callback

@@ -854,12 +854,12 @@ void uvre::GLRenderDevice::prepare()
 
 void uvre::GLRenderDevice::present()
 {
-    info.gl_swapBuffers();
+    info.gl.swapBuffers();
 }
 
 void uvre::GLRenderDevice::vsync(bool enable)
 {
-    info.gl_swapInterval(enable ? 1 : 0);
+    info.gl.setSwapInterval(enable ? 1 : 0);
 }
 
 void uvre::GLRenderDevice::mode(int width, int height)

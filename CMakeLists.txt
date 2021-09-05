@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(UVRE LANGUAGES C CXX VERSION 0.1.0)
+project(uvre LANGUAGES C CXX VERSION 0.1.0)
 
 set(UVRE_BACKEND "OpenGL" CACHE STRING "UVRE backend API")
 set(UVRE_BUILD_STATIC ON CACHE BOOL "Build static library")
@@ -9,15 +9,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(UVRE_BUILD_STATIC)
-    add_library(UVRE STATIC "")
-    target_compile_definitions(UVRE PUBLIC UVRE_STATIC)
+    add_library(uvre STATIC "")
+    target_compile_definitions(uvre PUBLIC UVRE_STATIC)
 else()
-    add_library(UVRE SHARED "")
-    target_compile_definitions(UVRE PRIVATE UVRE_SHARED)
+    add_library(uvre SHARED "")
+    target_compile_definitions(uvre PRIVATE UVRE_SHARED)
 endif()
 
 # Include directories
-target_include_directories(UVRE PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
+target_include_directories(uvre PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 # Backend implementations
 message("-- UVRE_BACKEND is ${UVRE_BACKEND}")

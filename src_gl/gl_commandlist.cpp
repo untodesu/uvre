@@ -75,7 +75,7 @@ void uvre::GLCommandList::bindPipeline(uvre::pipeline *pipeline)
         glFrontFace(bound_pipeline->face_culling.front_face);
     }
 
-    glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline->fill_mode);
+    glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline->fill);
 
     glBindProgramPipeline(bound_pipeline->ppobj);
     glBindVertexArray(bound_pipeline->vaobj);
@@ -134,7 +134,7 @@ void uvre::GLCommandList::draw(size_t vertices, size_t instances, size_t base_ve
     cmd.a.base_vertex = static_cast<uint32_t>(base_vertex);
     cmd.a.base_instance = static_cast<uint32_t>(base_instance);
     glNamedBufferSubData(owner->idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.a)), &cmd.a);
-    glDrawArraysIndirect(bound_pipeline->primitive_type, nullptr);
+    glDrawArraysIndirect(bound_pipeline->primitive, nullptr);
 }
 
 void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance)
@@ -146,5 +146,5 @@ void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_in
     cmd.e.base_vertex = static_cast<uint32_t>(base_vertex);
     cmd.e.base_instance = static_cast<uint32_t>(base_instance);
     glNamedBufferSubData(owner->idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.e)), &cmd.e);
-    glDrawElementsIndirect(bound_pipeline->primitive_type, bound_pipeline->index_type, nullptr);
+    glDrawElementsIndirect(bound_pipeline->primitive, bound_pipeline->index, nullptr);
 }

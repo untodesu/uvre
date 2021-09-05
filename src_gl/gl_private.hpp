@@ -46,9 +46,9 @@ struct pipeline final {
         uint32_t front_face;
         uint32_t cull_face;
     } face_culling;
-    uint32_t index_type;
-    uint32_t primitive_type;
-    uint32_t fill_mode;
+    uint32_t index;
+    uint32_t primitive;
+    uint32_t fill;
     size_t vertex_stride;
     std::vector<vertex_attrib> attributes;
 };

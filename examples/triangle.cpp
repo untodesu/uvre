@@ -39,7 +39,7 @@ void main()
 })";
 
 // GLFW error callback
-static void onGlfwError(int code, const char *message)
+static void onGlfwError(int, const char *message)
 {
     std::cerr << message << std::endl;
 }
@@ -157,9 +157,9 @@ int main()
     pipeline_info.blending.enabled = false;
     pipeline_info.depth_testing.enabled = false;
     pipeline_info.face_culling.enabled = false;
-    pipeline_info.index_type = uvre::index_type::INDEX16;
-    pipeline_info.primitive_type = uvre::primitive_type::TRIANGLES;
-    pipeline_info.fill_mode = uvre::fill_mode::WIREFRAME;
+    pipeline_info.index = uvre::index_type::INDEX16;
+    pipeline_info.primitive = uvre::primitive_type::TRIANGLES;
+    pipeline_info.fill = uvre::fill_mode::WIREFRAME;
     pipeline_info.vertex_stride = sizeof(vertex);
     pipeline_info.num_vertex_attribs = 2;
     pipeline_info.vertex_attribs = attributes;

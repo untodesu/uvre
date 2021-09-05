@@ -12,7 +12,7 @@
 #include <uvre/uvre.hpp>
 
 // GLFW error callback
-static void onGlfwError(int code, const char *message)
+static void onGlfwError(int, const char *message)
 {
     std::cerr << message << std::endl;
 }

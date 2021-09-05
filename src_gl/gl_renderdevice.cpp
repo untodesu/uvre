@@ -8,7 +8,8 @@
  */
 #include "gl_private.hpp"
 
-static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *arg)
+
+static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
 {
     const uvre::device_info *info = reinterpret_cast<const uvre::device_info *>(arg);
     info->onMessage(message);
@@ -29,9 +30,9 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::device_info &info) : info(info)
     null_pipeline.blending.enabled = false;
     null_pipeline.depth_testing.enabled = false;
     null_pipeline.face_culling.enabled = false;
-    null_pipeline.index_type = GL_UNSIGNED_SHORT;
-    null_pipeline.primitive_type = GL_LINE_STRIP;
-    null_pipeline.fill_mode = GL_LINE;
+    null_pipeline.index = GL_UNSIGNED_SHORT;
+    null_pipeline.primitive = GL_LINE_STRIP;
+    null_pipeline.fill = GL_LINE;
     
     if(this->info.onMessage) {
         glEnable(GL_DEBUG_OUTPUT);
@@ -361,9 +362,9 @@ uvre::pipeline *uvre::GLRenderDevice::createPipeline(const uvre::pipeline_info &
     pipeline->face_culling.enabled = info.face_culling.enabled;
     pipeline->face_culling.front_face = info.face_culling.clockwise ? GL_CW : GL_CCW;
     pipeline->face_culling.cull_face = getCullFace(info.face_culling.cull_back, info.face_culling.cull_front);
-    pipeline->index_type = getIndexType(info.index_type);
-    pipeline->primitive_type = getPrimitiveType(info.primitive_type);
-    pipeline->fill_mode = getFillMode(info.fill_mode);
+    pipeline->index = getIndexType(info.index);
+    pipeline->primitive = getPrimitiveType(info.primitive);
+    pipeline->fill = getFillMode(info.fill);
     pipeline->vertex_stride = info.vertex_stride;
     pipeline->attributes = std::vector<uvre::vertex_attrib>(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs);
     
@@ -865,12 +866,12 @@ void uvre::GLRenderDevice::destroyCommandList(uvre::ICommandList *commands)
     }
 }
 
-void uvre::GLRenderDevice::startRecording(uvre::ICommandList *commands)
+void uvre::GLRenderDevice::startRecording(uvre::ICommandList *)
 {
     // Nothing in OpenGL
 }
 
-void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
+void uvre::GLRenderDevice::submit(uvre::ICommandList *)
 {
     // Nothing in OpenGL
 }
@@ -893,7 +894,7 @@ void uvre::GLRenderDevice::vsync(bool enable)
     info.gl.setSwapInterval(enable ? 1 : 0);
 }
 
-void uvre::GLRenderDevice::mode(int width, int height)
+void uvre::GLRenderDevice::mode(int, int)
 {
     // Nothing in OpenGL
 }

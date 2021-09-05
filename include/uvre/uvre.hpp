@@ -231,9 +231,9 @@ struct pipeline_info final {
         bool cull_back;
         bool cull_front;
     } face_culling;
-    index_type index_type;
-    primitive_type primitive_type;
-    fill_mode fill_mode;
+    index_type index;
+    primitive_type primitive;
+    fill_mode fill;
     size_t vertex_stride;
     size_t num_vertex_attribs;
     const vertex_attrib *vertex_attribs;

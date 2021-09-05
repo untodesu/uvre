@@ -8,12 +8,6 @@
  */
 #include "gl_private.hpp"
 
-static GLADapiproc getProcAddrWrap(void *arg, const char *procname)
-{
-    const uvre::device_info *info = reinterpret_cast<const uvre::device_info *>(arg);
-    return reinterpret_cast<GLADapiproc>(info->gl.getProcAddr(procname));
-}
-
 UVRE_API void uvre::pollBackendInfo(uvre::backend_info &info)
 {
     info.family = uvre::backend_family::OPENGL;
@@ -27,11 +21,8 @@ UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::device_info &info)
     if(!info.gl.setSwapInterval || !info.gl.swapBuffers || !info.gl.makeContextCurrent || !info.gl.getProcAddr)
         return nullptr;
 
-    info.gl.makeContextCurrent();
-
-    uvre::device_info hack_info = info;
-    GLADuserptrloadfunc loadfunc_u = reinterpret_cast<GLADuserptrloadfunc>(getProcAddrWrap);
-    if(gladLoadGLUserPtr(loadfunc_u, &hack_info))
+    info.gl.makeContextCurrent(info.gl.user_data);
+    if(gladLoadGLUserPtr(reinterpret_cast<GLADuserptrloadfunc>(info.gl.getProcAddr), info.gl.user_data))
         return new uvre::GLRenderDevice(info);
 
     // We are doomed!!!

@@ -886,12 +886,12 @@ void uvre::GLRenderDevice::prepare()
 
 void uvre::GLRenderDevice::present()
 {
-    info.gl.swapBuffers();
+    info.gl.swapBuffers(info.gl.user_data);
 }
 
 void uvre::GLRenderDevice::vsync(bool enable)
 {
-    info.gl.setSwapInterval(enable ? 1 : 0);
+    info.gl.setSwapInterval(info.gl.user_data, enable ? 1 : 0);
 }
 
 void uvre::GLRenderDevice::mode(int, int)

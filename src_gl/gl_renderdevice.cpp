@@ -28,9 +28,11 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::device_info &info) : info(info)
     null_pipeline.ppobj = 0;
     null_pipeline.blending.enabled = false;
     null_pipeline.depth_testing.enabled = false;
-    null_pipeline.index = GL_UNSIGNED_SHORT;
-    null_pipeline.primitive = GL_LINE_STRIP;
-
+    null_pipeline.face_culling.enabled = false;
+    null_pipeline.index_type = GL_UNSIGNED_SHORT;
+    null_pipeline.primitive_type = GL_LINE_STRIP;
+    null_pipeline.fill_mode = GL_LINE;
+    
     if(this->info.onMessage) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -318,6 +320,31 @@ static inline uint32_t getPrimitiveType(uvre::primitive_type type)
     }
 }
 
+static inline uint32_t getCullFace(bool back, bool front)
+{
+    if(back && front)
+        return GL_FRONT_AND_BACK;
+    if(back)
+        return GL_BACK;
+    if(front)
+        return GL_FRONT;
+    return GL_BACK;
+}
+
+static inline uint32_t getFillMode(uvre::fill_mode mode)
+{
+    switch(mode) {
+        case uvre::fill_mode::FILLED:
+            return GL_FILL;
+        case uvre::fill_mode::POINTS:
+            return GL_POINT;
+        case uvre::fill_mode::WIREFRAME:
+            return GL_LINE;
+        default:
+            return GL_LINE;
+    }
+}
+
 uvre::pipeline *uvre::GLRenderDevice::createPipeline(const uvre::pipeline_info &info)
 {
     uvre::pipeline *pipeline = new uvre::pipeline;
@@ -331,8 +358,12 @@ uvre::pipeline *uvre::GLRenderDevice::createPipeline(const uvre::pipeline_info &
     pipeline->blending.dfactor = getBlendFunc(info.blending.dfactor);
     pipeline->depth_testing.enabled = info.depth_testing.enabled;
     pipeline->depth_testing.func = getDepthFunc(info.depth_testing.func);
-    pipeline->index = getIndexType(info.index);
-    pipeline->primitive = getPrimitiveType(info.primitive);
+    pipeline->face_culling.enabled = info.face_culling.enabled;
+    pipeline->face_culling.front_face = info.face_culling.clockwise ? GL_CW : GL_CCW;
+    pipeline->face_culling.cull_face = getCullFace(info.face_culling.cull_back, info.face_culling.cull_front);
+    pipeline->index_type = getIndexType(info.index_type);
+    pipeline->primitive_type = getPrimitiveType(info.primitive_type);
+    pipeline->fill_mode = getFillMode(info.fill_mode);
     pipeline->vertex_stride = info.vertex_stride;
     pipeline->attributes = std::vector<uvre::vertex_attrib>(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs);
     

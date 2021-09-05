@@ -172,6 +172,12 @@ enum class depth_func {
     GREATER_OR_EQUAL
 };
 
+enum class fill_mode {
+    FILLED,
+    POINTS,
+    WIREFRAME
+};
+
 enum class backend_family {
     OPENGL
 };
@@ -187,11 +193,6 @@ static constexpr const sampler_flags SAMPLER_CLAMP_T = (1 << 1);
 static constexpr const sampler_flags SAMPLER_CLAMP_R = (1 << 2);
 static constexpr const sampler_flags SAMPLER_FILTER = (1 << 3);
 static constexpr const sampler_flags SAMPLER_FILTER_ANISO = (1 << 4);
-
-struct rect final {
-    int x0, y0;
-    int x1, y1;
-};
 
 struct vertex_attrib final {
     uint32_t id;
@@ -224,8 +225,15 @@ struct pipeline_info final {
         bool enabled;
         depth_func func;
     } depth_testing;
-    index_type index;
-    primitive_type primitive;
+    struct {
+        bool enabled;
+        bool clockwise;
+        bool cull_back;
+        bool cull_front;
+    } face_culling;
+    index_type index_type;
+    primitive_type primitive_type;
+    fill_mode fill_mode;
     size_t vertex_stride;
     size_t num_vertex_attribs;
     const vertex_attrib *vertex_attribs;
@@ -257,8 +265,8 @@ struct texture_info final {
 };
 
 struct rendertarget_info final {
-    texture *depth_attachment;
-    texture *stencil_attachment;
+    texture *depth_attachment { nullptr };
+    texture *stencil_attachment { nullptr };
     size_t num_color_attachments;
     const color_attachment *color_attachments;
 };
@@ -287,8 +295,8 @@ class ICommandList {
 public:
     virtual ~ICommandList() = default;
 
-    virtual void setScissor(const rect &scissor) = 0;
-    virtual void setViewport(const rect &viewport) = 0;
+    virtual void setScissor(int x, int y, int width, int height) = 0;
+    virtual void setViewport(int x, int y, int width, int height) = 0;
 
     virtual void clearColor3f(float r, float g, float b) = 0;
     virtual void clearColor4f(float r, float g, float b, float a) = 0;
@@ -303,7 +311,7 @@ public:
     virtual void bindTexture(texture *texture, uint32_t index) = 0;
     virtual void bindRenderTarget(rendertarget *target) = 0;
 
-    virtual void copyRenderTarget(rendertarget *src, rendertarget *dst, const rect &src_rect, const rect &dst_rect, rendertarget_mask mask, bool filter) = 0;
+    virtual void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter) = 0;
     
     virtual void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance) = 0;
     virtual void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance) = 0;

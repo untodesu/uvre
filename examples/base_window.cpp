@@ -127,7 +127,7 @@ int main()
         // Set the viewport.
         // This is unnecessary if you don't want the window
         // to be resizable. You are free to remove this.
-        commands->setViewport(uvre::rect { 0, 0, width, height });
+        commands->setViewport(0, 0, width, height);
 
         // Setup the clear color and clear the screen.
         // After that the screen should turn a nice dark magenta.

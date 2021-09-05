@@ -108,66 +108,108 @@ int main()
     if(!device)
         std::terminate();
 
-    // A command list is basically an object that
-    // records the commands related to drawing. Command
-    // lists can be immediate (OpenGL) or deferred (Vulkan).
-    // Each command list must be submitted after recording.
-    // The create function is guaranteed to return a non-null value.
+    // After the rendering device is created and initialized,
+    // we need to create a command list object. A command list
+    // is an object which whole purpose is to record drawing
+    // commands and then submit them to the backend API.
     uvre::ICommandList *commands = device->createCommandList();
 
-    // Vertex shader description
+    // Now let's talk about how UVRE manages object creation.
+    // Unlike createCommandList, any other creation function
+    // requires an additional information structure to be passed
+    // in order to create a valid object.
+    // Some structures may have default values set to their fields
+    // but I advise you to fill every field manually (except for
+    // maybe LOD levels in uvre::texture_info structure).
+
+    // Vertex shader creation info.
     uvre::shader_info vert_info = {};
     vert_info.stage = uvre::shader_stage::VERTEX;
     vert_info.format = uvre::shader_format::SOURCE_GLSL;
     vert_info.code = vert_source;
 
-    // Fragment shader description
+    // Fragment shader creation info.
     uvre::shader_info frag_info = {};
     frag_info.stage = uvre::shader_stage::FRAGMENT;
     frag_info.format = uvre::shader_format::SOURCE_GLSL;
     frag_info.code = frag_source;
 
-    // Create shaders.
-    // We assume that the GLSL code is valid.
+    // Now we create the shaders using structures we've
+    // set up previously. These shaders are in an array
+    // because pipeline_info requires shaders to be in it.
     uvre::shader *shaders[2];
     shaders[0] = device->createShader(vert_info);
     shaders[1] = device->createShader(frag_info);
 
-    // Vertex format description
+    // Now it's time to set up the pipeline object.
+    // Pipeline objects cover up virtually everything related
+    // to shaders, blending, depth testing and rasterization.
+
+    // Vertex format description.
+    // The vertex we've defined has two fields, thus we
+    // create an array of two attributes with respective offsets.
     uvre::vertex_attrib attributes[2];
     attributes[0] = uvre::vertex_attrib { 0, uvre::vertex_attrib_type::FLOAT32, 2, offsetof(vertex, position), false };
     attributes[1] = uvre::vertex_attrib { 1, uvre::vertex_attrib_type::FLOAT32, 2, offsetof(vertex, texcoord), false };
 
-    // Pipeline description
+    // Pipeline creation info.
     uvre::pipeline_info pipeline_info = {};
     pipeline_info.blending.enabled = false;
     pipeline_info.depth_testing.enabled = false;
-    pipeline_info.index = uvre::index_type::INDEX16;
-    pipeline_info.primitive = uvre::primitive_type::TRIANGLES;
+    pipeline_info.face_culling.enabled = false;
+    pipeline_info.index_type = uvre::index_type::INDEX16;
+    pipeline_info.primitive_type = uvre::primitive_type::TRIANGLES;
+    pipeline_info.fill_mode = uvre::fill_mode::WIREFRAME;
     pipeline_info.vertex_stride = sizeof(vertex);
     pipeline_info.num_vertex_attribs = 2;
     pipeline_info.vertex_attribs = attributes;
     pipeline_info.num_shaders = 2;
     pipeline_info.shaders = shaders;
 
-    // Create pipeline
+    // And again, a creation function inputs this large
+    // amount of data that it'd be easier to just pass
+    // a structure containing all this data.
     uvre::pipeline *pipeline = device->createPipeline(pipeline_info);
 
-    // Vertex buffer data
+    // Triangle vertices.
+    // The coordinates are NDC.
     const vertex vertices[3] = {
         vertex { { -0.8f, -0.8f }, { 0.0f, 1.0f } },
         vertex { {  0.0f,  0.8f }, { 0.5f, 0.0f } },
         vertex { {  0.8f, -0.8f }, { 1.0f, 1.0f } },
     };
 
-    // Vertex buffer description
+    // Vertex buffer creation info.
     uvre::buffer_info vbo_info = {};
     vbo_info.type = uvre::buffer_type::VERTEX_BUFFER;
     vbo_info.size = sizeof(vertices);
     vbo_info.data = vertices;
 
-    // Create vertex buffer
+    // Create the vertex buffer.
+    // Unlike OpenGL, UVRE has no concept of Vertex Array
+    // objects exposed to its API. Instead, a global VAO
+    // is used for each pipeline object.
     uvre::buffer *vbo = device->createBuffer(vbo_info);
+
+    // Color attachment creation info.
+    uvre::texture_info color_info = {};
+    color_info.type = uvre::texture_type::TEXTURE_2D;
+    color_info.format = uvre::pixel_format::R16G16B16_UNORM;
+    color_info.width = WINDOW_WIDTH;
+    color_info.height = WINDOW_HEIGHT;
+
+    // Color attachment structure
+    uvre::color_attachment color_attachment = {};
+    color_attachment.id = 0;
+    color_attachment.color = device->createTexture(color_info);
+
+    // Render target creation info.
+    uvre::rendertarget_info target_info = {};
+    target_info.num_color_attachments = 1;
+    target_info.color_attachments = &color_attachment;
+    
+    // Create the render target
+    uvre::rendertarget *target = device->createRenderTarget(target_info);
 
     // Now the main loop. It should look pretty much the same
     // for all the backend APIs. UVRE is not an exception.
@@ -179,17 +221,32 @@ int main()
         // This does nothing for OpenGL.
         device->startRecording(commands);
 
-        // Setup the clear color and clear the screen.
-        // After that the screen should turn a nice dark magenta.
-        commands->clearColor3f(0.25f, 0.00f, 0.25f);
+        // Bind the render target and set viewport.
+        // Now every draw operation will output to the RT.
+        commands->bindRenderTarget(target);
+        commands->setViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+        // Clear the RT with a nice black color
+        commands->clearColor3f(0.0f, 0.0f, 0.0f);
         commands->clear(uvre::RT_COLOR_BUFFER);
 
-        // Bind the pipeline.
+        // Bind and draw
         commands->bindPipeline(pipeline);
-
-        // Bind VBO and draw
         commands->bindVertexBuffer(vbo);
         commands->draw(3, 1, 0, 0);
+
+        // Unbind the render target and set viewport.
+        // Now every draw operation will output to the screen.
+        commands->bindRenderTarget(nullptr);
+        commands->setViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+        // Clear the screen with a nice dark magenta color.
+        commands->clearColor3f(0.5f, 0.0f, 0.5f);
+        commands->clear(uvre::RT_COLOR_BUFFER);
+
+        // Copy or "blit" the render target to the screen.
+        // We'll leave a small 16px gap to indicate that it works.
+        commands->copyRenderTarget(target, nullptr, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 16, 16, WINDOW_WIDTH - 16, WINDOW_HEIGHT - 16, uvre::RT_COLOR_BUFFER, true);
 
         // Finish recording and submit the command list.
         // This does nothing for OpenGL.
@@ -201,6 +258,12 @@ int main()
         // Handle window's events
         glfwPollEvents();
     }
+
+    // Destroy the render target
+    device->destroyRenderTarget(target);
+
+    // Destroy the color texture
+    device->destroyTexture(color_attachment.color);
 
     // Destroy the vertex buffer
     device->destroyBuffer(vbo);

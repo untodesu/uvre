@@ -8,19 +8,31 @@
  */
 #include "gl_private.hpp"
 
+static inline uint32_t getTargetMask(uvre::rendertarget_mask mask)
+{
+    uint32_t result = 0;
+    if(mask & uvre::RT_COLOR_BUFFER)
+        result |= GL_COLOR_BUFFER_BIT;
+    if(mask & uvre::RT_DEPTH_BUFFER)
+        result |= GL_DEPTH_BUFFER_BIT;
+    if(mask & uvre::RT_STENCIL_BUFFER)
+        result |= GL_STENCIL_BUFFER_BIT;
+    return result;
+}
+
 uvre::GLCommandList::GLCommandList(uvre::GLRenderDevice *owner) : owner(owner), bound_pipeline(&owner->null_pipeline)
 {
 
 }
 
-void uvre::GLCommandList::setScissor(const uvre::rect &scissor)
+void uvre::GLCommandList::setScissor(int x, int y, int width, int height)
 {
-    glScissor(scissor.x0, scissor.y0, scissor.x1, scissor.y1);
+    glScissor(x, y, width, height);
 }
 
-void uvre::GLCommandList::setViewport(const uvre::rect &viewport)
+void uvre::GLCommandList::setViewport(int x, int y, int width, int height)
 {
-    glViewport(viewport.x0, viewport.y0, viewport.x1, viewport.y1);
+    glScissor(x, y, width, height);
 }
 
 void uvre::GLCommandList::clearColor3f(float r, float g, float b)
@@ -35,14 +47,7 @@ void uvre::GLCommandList::clearColor4f(float r, float g, float b, float a)
 
 void uvre::GLCommandList::clear(uvre::rendertarget_mask mask)
 {
-    uint32_t gl_mask = 0;
-    if(mask & uvre::RT_COLOR_BUFFER)
-        gl_mask |= GL_COLOR_BUFFER_BIT;
-    if(mask & uvre::RT_DEPTH_BUFFER)
-        gl_mask |= GL_DEPTH_BUFFER_BIT;
-    if(mask & uvre::RT_STENCIL_BUFFER)
-        gl_mask |= GL_STENCIL_BUFFER_BIT;
-    glClear(gl_mask);
+    glClear(getTargetMask(mask));
 }
 
 void uvre::GLCommandList::bindPipeline(uvre::pipeline *pipeline)
@@ -51,6 +56,7 @@ void uvre::GLCommandList::bindPipeline(uvre::pipeline *pipeline)
 
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 
     if(bound_pipeline->blending.enabled) {
         glEnable(GL_BLEND);
@@ -62,6 +68,14 @@ void uvre::GLCommandList::bindPipeline(uvre::pipeline *pipeline)
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(bound_pipeline->depth_testing.func);
     }
+
+    if(bound_pipeline->face_culling.enabled) {
+        glEnable(GL_CULL_FACE);
+        glCullFace(bound_pipeline->face_culling.cull_face);
+        glFrontFace(bound_pipeline->face_culling.front_face);
+    }
+
+    glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline->fill_mode);
 
     glBindProgramPipeline(bound_pipeline->ppobj);
     glBindVertexArray(bound_pipeline->vaobj);
@@ -107,16 +121,9 @@ void uvre::GLCommandList::bindRenderTarget(uvre::rendertarget *target)
     glBindFramebuffer(GL_FRAMEBUFFER, target ? target->fbobj : 0);
 }
 
-void uvre::GLCommandList::copyRenderTarget(uvre::rendertarget *src, uvre::rendertarget *dst, const uvre::rect &src_rect, const uvre::rect &dst_rect, uvre::rendertarget_mask mask, bool filter)
+void uvre::GLCommandList::copyRenderTarget(uvre::rendertarget *src, uvre::rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::rendertarget_mask mask, bool filter)
 {
-    uint32_t gl_mask = 0;
-    if(mask & uvre::RT_COLOR_BUFFER)
-        gl_mask |= GL_COLOR_BUFFER_BIT;
-    if(mask & uvre::RT_DEPTH_BUFFER)
-        gl_mask |= GL_DEPTH_BUFFER_BIT;
-    if(mask & uvre::RT_STENCIL_BUFFER)
-        gl_mask |= GL_STENCIL_BUFFER_BIT;
-    glBlitNamedFramebuffer(src ? src->fbobj : 0, dst ? dst->fbobj : 0, src_rect.x0, src_rect.y0, src_rect.x1, src_rect.y1, dst_rect.x0, dst_rect.y0, dst_rect.x1, dst_rect.y1, gl_mask, filter ? GL_LINEAR : GL_NEAREST);
+    glBlitNamedFramebuffer(src ? src->fbobj : 0, dst ? dst->fbobj : 0, sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, getTargetMask(mask), filter ? GL_LINEAR : GL_NEAREST);
 }
 
 void uvre::GLCommandList::draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance)
@@ -127,7 +134,7 @@ void uvre::GLCommandList::draw(size_t vertices, size_t instances, size_t base_ve
     cmd.a.base_vertex = static_cast<uint32_t>(base_vertex);
     cmd.a.base_instance = static_cast<uint32_t>(base_instance);
     glNamedBufferSubData(owner->idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.a)), &cmd.a);
-    glDrawArraysIndirect(bound_pipeline->primitive, nullptr);
+    glDrawArraysIndirect(bound_pipeline->primitive_type, nullptr);
 }
 
 void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance)
@@ -139,5 +146,5 @@ void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_in
     cmd.e.base_vertex = static_cast<uint32_t>(base_vertex);
     cmd.e.base_instance = static_cast<uint32_t>(base_instance);
     glNamedBufferSubData(owner->idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.e)), &cmd.e);
-    glDrawElementsIndirect(bound_pipeline->primitive, bound_pipeline->index, nullptr);
+    glDrawElementsIndirect(bound_pipeline->primitive_type, bound_pipeline->index_type, nullptr);
 }

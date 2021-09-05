@@ -41,8 +41,14 @@ struct pipeline final {
         bool enabled;
         uint32_t func;
     } depth_testing;
-    uint32_t index;
-    uint32_t primitive;
+    struct {
+        bool enabled;
+        uint32_t front_face;
+        uint32_t cull_face;
+    } face_culling;
+    uint32_t index_type;
+    uint32_t primitive_type;
+    uint32_t fill_mode;
     size_t vertex_stride;
     std::vector<vertex_attrib> attributes;
 };
@@ -90,8 +96,8 @@ class GLCommandList final : public ICommandList {
 public:
     GLCommandList(GLRenderDevice *device);
 
-    void setScissor(const rect &scissor);
-    void setViewport(const rect &viewport);
+    void setScissor(int x, int y, int width, int height);
+    void setViewport(int x, int y, int width, int height);
 
     void clearColor3f(float r, float g, float b);
     void clearColor4f(float r, float g, float b, float a);
@@ -106,7 +112,7 @@ public:
     void bindTexture(texture *texture, uint32_t index);
     void bindRenderTarget(rendertarget *target);
 
-    void copyRenderTarget(rendertarget *src, rendertarget *dst, const rect &src_rect, const rect &dst_rect, rendertarget_mask mask, bool filter);
+    void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter);
     
     void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance);
     void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance);

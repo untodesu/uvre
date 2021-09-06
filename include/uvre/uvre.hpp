@@ -261,6 +261,12 @@ struct texture_info final {
     uint32_t height;
     uint32_t depth { 0 };
     size_t mip_levels { 0 };
+    bool write;
+    uint32_t wface;
+    uint32_t wx, wy, wz;
+    uint32_t ww, wh, wd;
+    pixel_format wformat;
+    const void *wdata { nullptr };
 };
 
 struct rendertarget_info final {
@@ -310,6 +316,7 @@ public:
     virtual void bindTexture(texture *texture, uint32_t index) = 0;
     virtual void bindRenderTarget(rendertarget *target) = 0;
 
+    virtual bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data) = 0;
     virtual void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter) = 0;
 
     virtual void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance) = 0;
@@ -328,17 +335,12 @@ public:
 
     virtual buffer *createBuffer(const buffer_info &info) = 0;
     virtual void destroyBuffer(buffer *buffer) = 0;
-    virtual void resizeBuffer(buffer *buffer, size_t size, const void *data) = 0;
-    virtual bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data) = 0;
 
     virtual sampler *createSampler(const sampler_info &info) = 0;
     virtual void destroySampler(sampler *sampler) = 0;
 
     virtual texture *createTexture(const texture_info &info) = 0;
     virtual void destroyTexture(texture *texture) = 0;
-    virtual bool writeTexture2D(texture *texture, int x, int y, int w, int h, pixel_format format, const void *data) = 0;
-    virtual bool writeTextureCube(texture *texture, int face, int x, int y, int w, int h, pixel_format format, const void *data) = 0;
-    virtual bool writeTextureArray(texture *texture, int x, int y, int z, int w, int h, int d, pixel_format format, const void *data) = 0;
 
     virtual rendertarget *createRenderTarget(const rendertarget_info &info) = 0;
     virtual void destroyRenderTarget(rendertarget *target) = 0;

@@ -112,6 +112,7 @@ public:
     void bindTexture(texture *texture, uint32_t index);
     void bindRenderTarget(rendertarget *target);
 
+    bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data);
     void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter);
 
     void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance);
@@ -135,17 +136,12 @@ public:
 
     buffer *createBuffer(const buffer_info &info);
     void destroyBuffer(buffer *buffer);
-    void resizeBuffer(buffer *buffer, size_t size, const void *data);
-    bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data);
 
     sampler *createSampler(const sampler_info &info);
     void destroySampler(sampler *sampler);
 
     texture *createTexture(const texture_info &info);
     void destroyTexture(texture *texture);
-    bool writeTexture2D(texture *tex, int x, int y, int w, int h, pixel_format format, const void *data);
-    bool writeTextureCube(texture *tex, int face, int x, int y, int w, int h, pixel_format format, const void *data);
-    bool writeTextureArray(texture *tex, int x, int y, int z, int w, int h, int d, pixel_format format, const void *data);
 
     rendertarget *createRenderTarget(const rendertarget_info &info);
     void destroyRenderTarget(rendertarget *target);

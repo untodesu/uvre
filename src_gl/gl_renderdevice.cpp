@@ -473,20 +473,6 @@ void uvre::GLRenderDevice::destroyBuffer(uvre::buffer *buffer)
     }
 }
 
-void uvre::GLRenderDevice::resizeBuffer(uvre::buffer *buffer, size_t size, const void *data)
-{
-    buffer->size = size;
-    glNamedBufferData(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), data, GL_DYNAMIC_DRAW);
-}
-
-bool uvre::GLRenderDevice::writeBuffer(uvre::buffer *buffer, size_t offset, size_t size, const void *data)
-{
-    if(offset + size >= buffer->size)
-        return false;
-    glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
-    return true;
-}
-
 uvre::sampler *uvre::GLRenderDevice::createSampler(const uvre::sampler_info &info)
 {
     uint32_t ssobj;
@@ -624,49 +610,6 @@ static inline uint32_t getInternalFormat(uvre::pixel_format format)
     }
 }
 
-uvre::texture *uvre::GLRenderDevice::createTexture(const uvre::texture_info &info)
-{
-    uvre::texture *texture = new uvre::texture;
-
-    texture->format = getInternalFormat(info.format);
-    texture->width = static_cast<int>(info.width % std::numeric_limits<int>::max());
-    texture->height = static_cast<int>(info.height % std::numeric_limits<int>::max());
-    texture->depth = static_cast<int>(info.depth % std::numeric_limits<int>::max());
-
-    switch(info.type) {
-        case uvre::texture_type::TEXTURE_2D:
-            glCreateTextures(GL_TEXTURE_2D, 1, &texture->texobj);
-            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
-            break;
-        case uvre::texture_type::TEXTURE_CUBE:
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture->texobj);
-            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
-            break;
-        case uvre::texture_type::TEXTURE_ARRAY:
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->texobj);
-            glTextureStorage3D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height, texture->depth);
-            break;
-        default:
-            delete texture;
-            return nullptr;
-    }
-
-    textures.push_back(texture);
-    return texture;
-}
-
-void uvre::GLRenderDevice::destroyTexture(uvre::texture *texture)
-{
-    for(std::vector<uvre::texture *>::const_iterator it = textures.cbegin(); it != textures.cend(); it++) {
-        if(*it == texture) {
-            textures.erase(it);
-            glDeleteTextures(1, &texture->texobj);
-            delete texture;
-            return;
-        }
-    }
-}
-
 static bool getExternalFormat(uvre::pixel_format format, uint32_t &fmt, uint32_t &type)
 {
     switch(format) {
@@ -780,37 +723,69 @@ static bool getExternalFormat(uvre::pixel_format format, uint32_t &fmt, uint32_t
     return true;
 }
 
-bool uvre::GLRenderDevice::writeTexture2D(uvre::texture *texture, int x, int y, int w, int h, uvre::pixel_format format, const void *pixels)
+uvre::texture *uvre::GLRenderDevice::createTexture(const uvre::texture_info &info)
 {
-    uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, pixels);
-        return true;
+    uvre::texture *texture = new uvre::texture;
+
+    texture->format = getInternalFormat(info.format);
+    texture->width = static_cast<int>(info.width);
+    texture->height = static_cast<int>(info.height);
+    texture->depth = static_cast<int>(info.depth);
+
+    switch(info.type) {
+        case uvre::texture_type::TEXTURE_2D:
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture->texobj);
+            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
+            break;
+        case uvre::texture_type::TEXTURE_CUBE:
+            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture->texobj);
+            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
+            break;
+        case uvre::texture_type::TEXTURE_ARRAY:
+            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->texobj);
+            glTextureStorage3D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height, texture->depth);
+            break;
+        default:
+            delete texture;
+            return nullptr;
     }
 
-    return false;
+    uint32_t wfmt, wtype;
+    if(info.write && info.wdata && getExternalFormat(info.wformat, wfmt, wtype)) {
+        int32_t wx = static_cast<int32_t>(info.wx);
+        int32_t wy = static_cast<int32_t>(info.wy);
+        int32_t wz = static_cast<int32_t>(info.wz);
+        int32_t ww = static_cast<int32_t>(info.ww);
+        int32_t wh = static_cast<int32_t>(info.wh);
+        int32_t wd = static_cast<int32_t>(info.wd);
+        int32_t wface = static_cast<int32_t>(info.wface);
+        switch(info.type) {
+            case uvre::texture_type::TEXTURE_2D:
+                glTextureSubImage2D(texture->texobj, 0, wx, wy, ww, wh, wfmt, wtype, info.wdata);
+                break;
+            case uvre::texture_type::TEXTURE_CUBE:
+                glTextureSubImage3D(texture->texobj, 0, wx, wy, wface, ww, wh, 1, wfmt, wtype, info.wdata);
+                break;
+            case uvre::texture_type::TEXTURE_ARRAY:
+                glTextureSubImage3D(texture->texobj, 0, wx, wy, wz, ww, wh, wd, wfmt, wtype, info.wdata);
+                break;
+        }
+    }
+
+    textures.push_back(texture);
+    return texture;
 }
 
-bool uvre::GLRenderDevice::writeTextureCube(uvre::texture *texture, int face, int x, int y, int w, int h, uvre::pixel_format format, const void *pixels)
+void uvre::GLRenderDevice::destroyTexture(uvre::texture *texture)
 {
-    uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, pixels);
-        return true;
+    for(std::vector<uvre::texture *>::const_iterator it = textures.cbegin(); it != textures.cend(); it++) {
+        if(*it == texture) {
+            textures.erase(it);
+            glDeleteTextures(1, &texture->texobj);
+            delete texture;
+            return;
+        }
     }
-
-    return false;
-}
-
-bool uvre::GLRenderDevice::writeTextureArray(uvre::texture *texture, int x, int y, int z, int w, int h, int d, uvre::pixel_format format, const void *pixels)
-{
-    uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, pixels);
-        return true;
-    }
-
-    return false;
 }
 
 uvre::rendertarget *uvre::GLRenderDevice::createRenderTarget(const uvre::rendertarget_info &info)

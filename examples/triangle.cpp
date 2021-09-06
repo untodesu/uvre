@@ -198,6 +198,7 @@ int main()
     color_info.format = uvre::pixel_format::R16G16B16_UNORM;
     color_info.width = WINDOW_WIDTH;
     color_info.height = WINDOW_HEIGHT;
+    color_info.write = false;
 
     // Color attachment structure
     uvre::color_attachment color_attachment = {};

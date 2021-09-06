@@ -121,6 +121,14 @@ void uvre::GLCommandList::bindRenderTarget(uvre::rendertarget *target)
     glBindFramebuffer(GL_FRAMEBUFFER, target ? target->fbobj : 0);
 }
 
+bool uvre::GLCommandList::writeBuffer(uvre::buffer *buffer, size_t offset, size_t size, const void *data)
+{
+    if(offset + size >= buffer->size)
+        return false;
+    glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
+    return true;
+}
+
 void uvre::GLCommandList::copyRenderTarget(uvre::rendertarget *src, uvre::rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::rendertarget_mask mask, bool filter)
 {
     glBlitNamedFramebuffer(src ? src->fbobj : 0, dst ? dst->fbobj : 0, sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, getTargetMask(mask), filter ? GL_LINEAR : GL_NEAREST);

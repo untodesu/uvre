@@ -123,7 +123,7 @@ void uvre::GLCommandList::bindRenderTarget(uvre::rendertarget *target)
 
 bool uvre::GLCommandList::writeBuffer(uvre::buffer *buffer, size_t offset, size_t size, const void *data)
 {
-    if(offset + size >= buffer->size)
+    if(offset + size > buffer->size)
         return false;
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
     return true;

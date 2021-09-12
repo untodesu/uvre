@@ -4,7 +4,6 @@
             "name": "default",
             "includePath": [
                 "${default}",
-                "${workspaceFolder}/examples/glfw/include",
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/src_gl/glad/include"
             ],

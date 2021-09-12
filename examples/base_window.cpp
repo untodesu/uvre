@@ -36,7 +36,7 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::backend_info backend_info;
+    uvre::BackendInfo backend_info;
     uvre::pollBackendInfo(backend_info);
 
     // Do not require any client API by default
@@ -48,7 +48,7 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     // If the backend API is OpenGL-ish
-    if(backend_info.family == uvre::backend_family::OPENGL) {
+    if(backend_info.family == uvre::BackendFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
@@ -70,10 +70,10 @@ int main()
     // Now the windowing API also needs to pass some
     // data to the library before creating a rendering
     // device. Usually this data is API-specific callbacks.
-    uvre::device_info device_info = {};
+    uvre::DeviceInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(backend_info.family == uvre::backend_family::OPENGL) {
+    if(backend_info.family == uvre::BackendFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };

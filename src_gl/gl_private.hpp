@@ -16,19 +16,19 @@
 
 namespace uvre
 {
-struct vbo_binding final {
+struct VBOBinding final {
     uint32_t index;
     bool is_free;
-    vbo_binding *next;
+    VBOBinding *next;
 };
 
-struct shader final {
+struct Shader final {
     uint32_t prog;
     uint32_t stage_bit;
-    shader_stage stage;
+    ShaderStage stage;
 };
 
-struct pipeline final {
+struct Pipeline final {
     uint32_t ppobj;
     uint32_t vaobj;
     struct {
@@ -46,20 +46,20 @@ struct pipeline final {
         uint32_t front_face;
         uint32_t cull_face;
     } face_culling;
-    uint32_t index;
-    uint32_t primitive;
-    uint32_t fill;
+    uint32_t index_type;
+    uint32_t primitive_mode;
+    uint32_t fill_mode;
     size_t vertex_stride;
-    std::vector<vertex_attrib> attributes;
+    std::vector<VertexAttrib> attributes;
 };
 
-struct buffer final {
+struct Buffer final {
     uint32_t bufobj;
-    vbo_binding *vbo;
+    VBOBinding *vbo;
     size_t size;
 };
 
-struct texture final {
+struct Texture final {
     uint32_t texobj;
     uint32_t format;
     int width;
@@ -67,15 +67,15 @@ struct texture final {
     int depth;
 };
 
-struct sampler final {
+struct Sampler final {
     uint32_t ssobj;
 };
 
-struct rendertarget final {
+struct RenderTarget final {
     uint32_t fbobj;
 };
 
-union drawcmd final {
+union DrawCmd final {
     struct {
         uint32_t vertices;
         uint32_t instances;
@@ -101,50 +101,54 @@ public:
 
     void clearColor3f(float r, float g, float b);
     void clearColor4f(float r, float g, float b, float a);
-    void clear(rendertarget_mask mask);
+    void clear(RenderTargetMask mask);
 
-    void bindPipeline(pipeline *pipeline);
-    void bindUniformBuffer(buffer *buffer, uint32_t index);
-    void bindStorageBuffer(buffer *buffer, uint32_t index);
-    void bindIndexBuffer(buffer *buffer);
-    void bindVertexBuffer(buffer *buffer);
-    void bindSampler(sampler *sampler, uint32_t index);
-    void bindTexture(texture *texture, uint32_t index);
-    void bindRenderTarget(rendertarget *target);
+    void bindPipeline(Pipeline *pipeline);
+    void bindUniformBuffer(Buffer *buffer, uint32_t index);
+    void bindStorageBuffer(Buffer *buffer, uint32_t index);
+    void bindIndexBuffer(Buffer *buffer);
+    void bindVertexBuffer(Buffer *buffer);
+    void bindSampler(Sampler *sampler, uint32_t index);
+    void bindTexture(Texture *texture, uint32_t index);
+    void bindRenderTarget(RenderTarget *target);
 
-    bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data);
-    void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter);
+    bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data);
+    void copyRenderTarget(RenderTarget *src, RenderTarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, RenderTargetMask mask, bool filter);
 
     void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance);
     void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance);
 
 public:
     GLRenderDevice *owner;
-    pipeline *bound_pipeline;
 };
 
 class GLRenderDevice final : public IRenderDevice {
 public:
-    GLRenderDevice(const device_info &info);
+    GLRenderDevice(const DeviceInfo &info);
     virtual ~GLRenderDevice();
 
-    shader *createShader(const shader_info &info);
-    void destroyShader(shader *shader);
+    Shader *createShader(const ShaderInfo &info);
+    void destroyShader(Shader *shader);
 
-    pipeline *createPipeline(const pipeline_info &info);
-    void destroyPipeline(pipeline *pipeline);
+    Pipeline *createPipeline(const PipelineInfo &info);
+    void destroyPipeline(Pipeline *pipeline);
 
-    buffer *createBuffer(const buffer_info &info);
-    void destroyBuffer(buffer *buffer);
+    Buffer *createBuffer(const BufferInfo &info);
+    void destroyBuffer(Buffer *buffer);
+    void resizeBuffer(Buffer *buffer, size_t size, const void *data);
+    bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data);
 
-    sampler *createSampler(const sampler_info &info);
-    void destroySampler(sampler *sampler);
+    Sampler *createSampler(const SamplerInfo &info);
+    void destroySampler(Sampler *sampler);
 
-    texture *createTexture(const texture_info &info);
-    void destroyTexture(texture *texture);
+    Texture *createTexture(const TextureInfo &info);
+    void destroyTexture(Texture *texture);
+    bool writeTexture2D(Texture *texture, int x, int y, int w, int h, PixelFormat format, const void *data);
+    bool writeTextureCube(Texture *texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data);
+    bool writeTextureArray(Texture *texture, int x, int y, int z, int w, int h, int d, PixelFormat format, const void *data);
 
-    rendertarget *createRenderTarget(const rendertarget_info &info);
-    void destroyRenderTarget(rendertarget *target);
+    RenderTarget *createRenderTarget(const RenderTargetInfo &info);
+    void destroyRenderTarget(RenderTarget *target);
 
     ICommandList *createCommandList();
     void destroyCommandList(ICommandList *commands);
@@ -159,15 +163,16 @@ public:
 
 public:
     uint32_t idbo;
-    device_info info;
-    vbo_binding *vbos;
-    pipeline null_pipeline;
-    std::vector<shader *> shaders;
-    std::vector<pipeline *> pipelines;
-    std::vector<buffer *> buffers;
-    std::vector<sampler *> samplers;
-    std::vector<texture *> textures;
-    std::vector<rendertarget *> rendertargets;
+    DeviceInfo info;
+    VBOBinding *vbos;
+    Pipeline null_pipeline;
+    Pipeline *bound_pipeline;
+    std::vector<Shader *> shaders;
+    std::vector<Pipeline *> pipelines;
+    std::vector<Buffer *> buffers;
+    std::vector<Sampler *> samplers;
+    std::vector<Texture *> textures;
+    std::vector<RenderTarget *> rendertargets;
     std::vector<GLCommandList *> commandlists;
 };
 

@@ -55,7 +55,7 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::backend_info backend_info;
+    uvre::BackendInfo backend_info;
     uvre::pollBackendInfo(backend_info);
 
     // Do not require any client API by default
@@ -65,7 +65,7 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     // If the backend API is OpenGL-ish
-    if(backend_info.family == uvre::backend_family::OPENGL) {
+    if(backend_info.family == uvre::BackendFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
@@ -87,10 +87,10 @@ int main()
     // Now the windowing API also needs to pass some
     // data to the library before creating a rendering
     // device. Usually this data is API-specific callbacks.
-    uvre::device_info device_info = {};
+    uvre::DeviceInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(backend_info.family == uvre::backend_family::OPENGL) {
+    if(backend_info.family == uvre::BackendFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
@@ -121,24 +121,24 @@ int main()
     // in order to create a valid object.
     // Some structures may have default values set to their fields
     // but I advise you to fill every field manually (except for
-    // maybe LOD levels in uvre::texture_info structure).
+    // maybe LOD levels in uvre::TextureInfo structure).
 
     // Vertex shader creation info.
-    uvre::shader_info vert_info = {};
-    vert_info.stage = uvre::shader_stage::VERTEX;
-    vert_info.format = uvre::shader_format::SOURCE_GLSL;
+    uvre::ShaderInfo vert_info = {};
+    vert_info.stage = uvre::ShaderStage::VERTEX;
+    vert_info.format = uvre::ShaderFormat::SOURCE_GLSL;
     vert_info.code = vert_source;
 
     // Fragment shader creation info.
-    uvre::shader_info frag_info = {};
-    frag_info.stage = uvre::shader_stage::FRAGMENT;
-    frag_info.format = uvre::shader_format::SOURCE_GLSL;
+    uvre::ShaderInfo frag_info = {};
+    frag_info.stage = uvre::ShaderStage::FRAGMENT;
+    frag_info.format = uvre::ShaderFormat::SOURCE_GLSL;
     frag_info.code = frag_source;
 
     // Now we create the shaders using structures we've
     // set up previously. These shaders are in an array
-    // because pipeline_info requires shaders to be in it.
-    uvre::shader *shaders[2];
+    // because pipelines require shaders to be in them.
+    uvre::Shader *shaders[2];
     shaders[0] = device->createShader(vert_info);
     shaders[1] = device->createShader(frag_info);
 
@@ -149,18 +149,18 @@ int main()
     // Vertex format description.
     // The vertex we've defined has two fields, thus we
     // create an array of two attributes with respective offsets.
-    uvre::vertex_attrib attributes[2];
-    attributes[0] = uvre::vertex_attrib { 0, uvre::vertex_attrib_type::FLOAT32, 2, offsetof(vertex, position), false };
-    attributes[1] = uvre::vertex_attrib { 1, uvre::vertex_attrib_type::FLOAT32, 2, offsetof(vertex, texcoord), false };
+    uvre::VertexAttrib attributes[2];
+    attributes[0] = uvre::VertexAttrib { 0, uvre::VertexAttribType::FLOAT32, 2, offsetof(vertex, position), false };
+    attributes[1] = uvre::VertexAttrib { 1, uvre::VertexAttribType::FLOAT32, 2, offsetof(vertex, texcoord), false };
 
     // Pipeline creation info.
-    uvre::pipeline_info pipeline_info = {};
+    uvre::PipelineInfo pipeline_info = {};
     pipeline_info.blending.enabled = false;
     pipeline_info.depth_testing.enabled = false;
     pipeline_info.face_culling.enabled = false;
-    pipeline_info.index = uvre::index_type::INDEX16;
-    pipeline_info.primitive = uvre::primitive_type::TRIANGLES;
-    pipeline_info.fill = uvre::fill_mode::WIREFRAME;
+    pipeline_info.index = uvre::IndexType::INDEX16;
+    pipeline_info.primitive = uvre::PrimitiveMode::TRIANGLES;
+    pipeline_info.fill = uvre::FillMode::WIREFRAME;
     pipeline_info.vertex_stride = sizeof(vertex);
     pipeline_info.num_vertex_attribs = 2;
     pipeline_info.vertex_attribs = attributes;
@@ -170,7 +170,7 @@ int main()
     // And again, a creation function inputs this large
     // amount of data that it'd be easier to just pass
     // a structure containing all this data.
-    uvre::pipeline *pipeline = device->createPipeline(pipeline_info);
+    uvre::Pipeline *pipeline = device->createPipeline(pipeline_info);
 
     // Triangle vertices.
     // The coordinates are NDC.
@@ -181,8 +181,8 @@ int main()
     };
 
     // Vertex buffer creation info.
-    uvre::buffer_info vbo_info = {};
-    vbo_info.type = uvre::buffer_type::VERTEX_BUFFER;
+    uvre::BufferInfo vbo_info = {};
+    vbo_info.type = uvre::BufferType::VERTEX_BUFFER;
     vbo_info.size = sizeof(vertices);
     vbo_info.data = vertices;
 
@@ -190,28 +190,27 @@ int main()
     // Unlike OpenGL, UVRE has no concept of Vertex Array
     // objects exposed to its API. Instead, a global VAO
     // is used for each pipeline object.
-    uvre::buffer *vbo = device->createBuffer(vbo_info);
+    uvre::Buffer *vbo = device->createBuffer(vbo_info);
 
     // Color attachment creation info.
-    uvre::texture_info color_info = {};
-    color_info.type = uvre::texture_type::TEXTURE_2D;
-    color_info.format = uvre::pixel_format::R16G16B16_UNORM;
+    uvre::TextureInfo color_info = {};
+    color_info.type = uvre::TextureType::TEXTURE_2D;
+    color_info.format = uvre::PixelFormat::R16G16B16_UNORM;
     color_info.width = WINDOW_WIDTH;
     color_info.height = WINDOW_HEIGHT;
-    color_info.write = false;
 
     // Color attachment structure
-    uvre::color_attachment color_attachment = {};
+    uvre::ColorAttachment color_attachment = {};
     color_attachment.id = 0;
     color_attachment.color = device->createTexture(color_info);
 
     // Render target creation info.
-    uvre::rendertarget_info target_info = {};
+    uvre::RenderTargetInfo target_info = {};
     target_info.num_color_attachments = 1;
     target_info.color_attachments = &color_attachment;
 
     // Create the render target
-    uvre::rendertarget *target = device->createRenderTarget(target_info);
+    uvre::RenderTarget *target = device->createRenderTarget(target_info);
 
     // Now the main loop. It should look pretty much the same
     // for all the backend APIs. UVRE is not an exception.

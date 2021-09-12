@@ -31,66 +31,26 @@
 
 namespace uvre
 {
-/**
- * A GPU-side program.
- * Cannot be used without pipelines.
- */
-struct shader;
-
-/**
- * A set of options and internal objects
- * setting up a needed backend state.
- */
-struct pipeline;
-
-/**
- * A GPU-side chunk of data.
- * Universal as an object but can break
- * things real bad when used in wrong methods.
- */
-struct buffer;
-
-/**
- * A set of options used to tell the backend
- * how to treat texture objects properly.
- */
-struct sampler;
-
-/**
- * A GPU-side image buffer.
- * Can be bound to the same slot as samplers.
- */
-struct texture;
-
-/**
- * A set of options and textures used
- * to be drawn into. Needs to be bound.
- * There's a backend-defined default render
- * target, use NULL to bind it.
- */
-struct rendertarget;
+struct Shader;
+struct Pipeline;
+struct Buffer;
+struct Sampler;
+struct Texture;
+struct RenderTarget;
 
 using std::size_t;
 using std::uint16_t;
 using std::uint32_t;
 
-using index16 = uint16_t;
-using index32 = uint32_t;
+using Index16 = uint16_t;
+using Index32 = uint32_t;
 
-/**
- * Represents the index type
- * used for indexed drawing.
- */
-enum class index_type {
+enum class IndexType {
     INDEX16,
     INDEX32
 };
 
-/**
- * Represents the way rasterizer
- * treats the vertex data.
- */
-enum class primitive_type {
+enum class PrimitiveMode {
     POINTS,
     LINES,
     LINE_STRIP,
@@ -100,11 +60,7 @@ enum class primitive_type {
     TRIANGLE_FAN
 };
 
-/**
- * Represents a type of an attribute that
- * is passed to a vertex shader program.
- */
-enum class vertex_attrib_type {
+enum class VertexAttribType {
     FLOAT32,
     FLOAT64,
     SIGNED_INT8,
@@ -115,50 +71,29 @@ enum class vertex_attrib_type {
     UNSIGNED_INT32
 };
 
-/**
- * A hint for the backend to create buffer
- * objects in the way they are supposed to be created.
- */
-enum class buffer_type {
+enum class BufferType {
     DATA_BUFFER,
     INDEX_BUFFER,
     VERTEX_BUFFER
 };
 
-/**
- * Represents the stage of a shader program.
- * Vertex shaders run per-vertex.
- * Fragment shaders run per-fragment (pixel).
- */
-enum class shader_stage {
+enum class ShaderStage {
     VERTEX,
     FRAGMENT
 };
 
-/**
- * A hint for the backend in order for it to
- * parse the passed shader code correctly.
- */
-enum class shader_format {
+enum class ShaderFormat {
     BINARY_SPIRV,
     SOURCE_GLSL
 };
 
-/**
- * A hint for the backend to create texture
- * objects in the way they are supposed to be created.
- */
-enum class texture_type {
+enum class TextureType {
     TEXTURE_2D,
     TEXTURE_CUBE,
     TEXTURE_ARRAY
 };
 
-/**
- * A format description (hint) for the backend
- * in order to treat the texture data correctly.
- */
-enum class pixel_format {
+enum class PixelFormat {
     R8_UNORM,
     R8_SINT,
     R8_UINT,
@@ -204,11 +139,7 @@ enum class pixel_format {
     S8_UINT,
 };
 
-/**
- * The equation used when blending
- * two colors together.
- */
-enum class blend_equation {
+enum class BlendEquation {
     ADD,
     SUBTRACT,
     REVERSE_SUBTRACT,
@@ -216,11 +147,7 @@ enum class blend_equation {
     MAX
 };
 
-/**
- * A function used in blending
- * two colors together. Used twice.
- */
-enum class blend_func {
+enum class BlendFunc {
     ZERO,
     ONE,
     SRC_COLOR,
@@ -233,12 +160,7 @@ enum class blend_func {
     ONE_MINUS_DST_ALPHA
 };
 
-/**
- * A function used to compare pixel
- * depths in order to determine which
- * one is closer to the camera.
- */
-enum class depth_func {
+enum class DepthFunc {
     NEVER,
     ALWAYS,
     EQUAL,
@@ -249,167 +171,110 @@ enum class depth_func {
     GREATER_OR_EQUAL
 };
 
-/**
- * A hint for the backend to draw primitives 
- * in the way they they are supposed to be drawn.
- */
-enum class fill_mode {
+enum class FillMode {
     FILLED,
     POINTS,
     WIREFRAME
 };
 
-/**
- * A hint for the client application about
- * the backend API implemented by the library.
- */
-enum class backend_family {
+enum class BackendFamily {
     OPENGL
 };
 
-/**
- * A mask for render target operations
- * such as clearing or copying (blitting).
- */
-using rendertarget_mask = uint16_t;
-static constexpr const rendertarget_mask RT_COLOR_BUFFER = (1 << 0);
-static constexpr const rendertarget_mask RT_DEPTH_BUFFER = (1 << 1);
-static constexpr const rendertarget_mask RT_STENCIL_BUFFER = (1 << 2);
+using RenderTargetMask = uint16_t;
+static constexpr const RenderTargetMask RT_COLOR_BUFFER = (1 << 0);
+static constexpr const RenderTargetMask RT_DEPTH_BUFFER = (1 << 1);
+static constexpr const RenderTargetMask RT_STENCIL_BUFFER = (1 << 2);
 
-/**
- * A bit flags used to determine how
- * sampler affects the textures' data
- * in fragment shaders' code.
- */
-using sampler_flags = uint16_t;
-static constexpr const sampler_flags SAMPLER_CLAMP_S = (1 << 0);
-static constexpr const sampler_flags SAMPLER_CLAMP_T = (1 << 1);
-static constexpr const sampler_flags SAMPLER_CLAMP_R = (1 << 2);
-static constexpr const sampler_flags SAMPLER_FILTER = (1 << 3);
-static constexpr const sampler_flags SAMPLER_FILTER_ANISO = (1 << 4);
+using SamplerFlags = uint16_t;
+static constexpr const SamplerFlags SAMPLER_CLAMP_S = (1 << 0);
+static constexpr const SamplerFlags SAMPLER_CLAMP_T = (1 << 1);
+static constexpr const SamplerFlags SAMPLER_CLAMP_R = (1 << 2);
+static constexpr const SamplerFlags SAMPLER_FILTER = (1 << 3);
+static constexpr const SamplerFlags SAMPLER_FILTER_ANISO = (1 << 4);
 
-/**
- * A single variable passed to the
- * vertex shader during rendering
- */
-struct vertex_attrib final {
+using CullFlags = uint16_t;
+static constexpr const CullFlags CULL_CLOCKWISE = (1 << 0);
+static constexpr const CullFlags CULL_FRONT = (1 << 1);
+static constexpr const CullFlags CULL_BACK = (1 << 2);
+
+struct VertexAttrib final {
     uint32_t id;
-    vertex_attrib_type type;
+    VertexAttribType type;
     size_t count;
     size_t offset;
     bool normalized;
 };
 
-/**
- * A texture object supposed to be
- * written into when the owning render
- * target is bound during rendering.
- */
-struct color_attachment final {
+struct ColorAttachment final {
     uint32_t id;
-    texture *color;
+    Texture *color;
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid shader.
- */
-struct shader_info final {
-    shader_stage stage;
-    shader_format format;
+struct ShaderInfo final {
+    ShaderStage stage;
+    ShaderFormat format;
     size_t code_size { 0 };
     const void *code;
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid pipeline.
- */
-struct pipeline_info final {
+struct PipelineInfo final {
     struct {
         bool enabled;
-        blend_equation equation;
-        blend_func sfactor;
-        blend_func dfactor;
+        BlendEquation equation;
+        BlendFunc sfactor;
+        BlendFunc dfactor;
     } blending;
     struct {
         bool enabled;
-        depth_func func;
+        DepthFunc func;
     } depth_testing;
     struct {
         bool enabled;
-        bool clockwise;
-        bool cull_back;
-        bool cull_front;
+        CullFlags flags;
     } face_culling;
-    index_type index;
-    primitive_type primitive;
-    fill_mode fill;
+    IndexType index_type;
+    PrimitiveMode primitive_mode;
+    FillMode fill_mode;
     size_t vertex_stride;
     size_t num_vertex_attribs;
-    const vertex_attrib *vertex_attribs;
+    const VertexAttrib *vertex_attribs;
     size_t num_shaders;
-    shader **shaders;
+    Shader **shaders;
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid buffer.
- */
-struct buffer_info final {
-    buffer_type type;
+struct BufferInfo final {
+    BufferType type;
     size_t size;
     const void *data { nullptr };
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid sampler.
- */
-struct sampler_info final {
-    sampler_flags flags;
+struct SamplerInfo final {
+    SamplerFlags flags;
     float aniso_level { 0.0f };
     float min_lod { -1000.0f };
     float max_lod { +1000.0f };
     float lod_bias { 0.0f };
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid texture.
- */
-struct texture_info final {
-    texture_type type;
-    pixel_format format;
+struct TextureInfo final {
+    TextureType type;
+    PixelFormat format;
     uint32_t width;
     uint32_t height;
     uint32_t depth { 0 };
     size_t mip_levels { 0 };
-    bool write;
-    uint32_t wface;
-    uint32_t wx, wy, wz;
-    uint32_t ww, wh, wd;
-    pixel_format wformat;
-    const void *wdata { nullptr };
 };
 
-/**
- * A set of options passed to the rendering
- * device in order to create a valid render target.
- */
-struct rendertarget_info final {
-    texture *depth_attachment { nullptr };
-    texture *stencil_attachment { nullptr };
+struct RenderTargetInfo final {
+    Texture *depth_attachment { nullptr };
+    Texture *stencil_attachment { nullptr };
     size_t num_color_attachments;
-    const color_attachment *color_attachments;
+    const ColorAttachment *color_attachments;
 };
 
-/**
- * Information needed for the client application
- * to construct a correct device_info contents.
- */
-struct backend_info final {
-    backend_family family;
+struct BackendInfo final {
+    BackendFamily family;
     struct {
         bool core_profile;
         int version_major;
@@ -417,12 +282,7 @@ struct backend_info final {
     } gl;
 };
 
-/**
- * A set of callbacks and values passed to the
- * render device creation function in order to
- * create a valid render device object.
- */
-struct device_info final {
+struct DeviceInfo final {
     struct {
         void *user_data;
         void*(*getProcAddr)(void *user_data, const char *procname);
@@ -433,10 +293,6 @@ struct device_info final {
     void(*onMessage)(const char *message);
 };
 
-/**
- * Responsible for recording and submitting
- * drawing commands and buffer/texture IO.
- */
 class ICommandList {
 public:
     virtual ~ICommandList() = default;
@@ -446,49 +302,50 @@ public:
 
     virtual void clearColor3f(float r, float g, float b) = 0;
     virtual void clearColor4f(float r, float g, float b, float a) = 0;
-    virtual void clear(rendertarget_mask mask) = 0;
+    virtual void clear(RenderTargetMask mask) = 0;
 
-    virtual void bindPipeline(pipeline *pipeline) = 0;
-    virtual void bindUniformBuffer(buffer *buffer, uint32_t index) = 0;
-    virtual void bindStorageBuffer(buffer *buffer, uint32_t index) = 0;
-    virtual void bindIndexBuffer(buffer *buffer) = 0;
-    virtual void bindVertexBuffer(buffer *buffer) = 0;
-    virtual void bindSampler(sampler *sampler, uint32_t index) = 0;
-    virtual void bindTexture(texture *texture, uint32_t index) = 0;
-    virtual void bindRenderTarget(rendertarget *target) = 0;
+    virtual void bindPipeline(Pipeline *pipeline) = 0;
+    virtual void bindUniformBuffer(Buffer *buffer, uint32_t index) = 0;
+    virtual void bindStorageBuffer(Buffer *buffer, uint32_t index) = 0;
+    virtual void bindIndexBuffer(Buffer *buffer) = 0;
+    virtual void bindVertexBuffer(Buffer *buffer) = 0;
+    virtual void bindSampler(Sampler *sampler, uint32_t index) = 0;
+    virtual void bindTexture(Texture *texture, uint32_t index) = 0;
+    virtual void bindRenderTarget(RenderTarget *target) = 0;
 
-    virtual bool writeBuffer(buffer *buffer, size_t offset, size_t size, const void *data) = 0;
-    virtual void copyRenderTarget(rendertarget *src, rendertarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, rendertarget_mask mask, bool filter) = 0;
+    virtual bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data) = 0;
+    virtual void copyRenderTarget(RenderTarget *src, RenderTarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, RenderTargetMask mask, bool filter) = 0;
 
     virtual void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance) = 0;
     virtual void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance) = 0;
 };
 
-/**
- * Responsible for creating and destroying objects.
- * Also contains an API for a built-in swapchain.
- */
 class IRenderDevice {
 public:
     virtual ~IRenderDevice() = default;
 
-    virtual shader *createShader(const shader_info &info) = 0;
-    virtual void destroyShader(shader *sh) = 0;
+    virtual Shader *createShader(const ShaderInfo &info) = 0;
+    virtual void destroyShader(Shader *shader) = 0;
 
-    virtual pipeline *createPipeline(const pipeline_info &info) = 0;
-    virtual void destroyPipeline(pipeline *pl) = 0;
+    virtual Pipeline *createPipeline(const PipelineInfo &info) = 0;
+    virtual void destroyPipeline(Pipeline *pipeline) = 0;
 
-    virtual buffer *createBuffer(const buffer_info &info) = 0;
-    virtual void destroyBuffer(buffer *buffer) = 0;
+    virtual Buffer *createBuffer(const BufferInfo &info) = 0;
+    virtual void destroyBuffer(Buffer *buffer) = 0;
+    virtual void resizeBuffer(Buffer *buffer, size_t size, const void *data) = 0;
+    virtual bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data) = 0;
 
-    virtual sampler *createSampler(const sampler_info &info) = 0;
-    virtual void destroySampler(sampler *sampler) = 0;
+    virtual Sampler *createSampler(const SamplerInfo &info) = 0;
+    virtual void destroySampler(Sampler *sampler) = 0;
 
-    virtual texture *createTexture(const texture_info &info) = 0;
-    virtual void destroyTexture(texture *texture) = 0;
+    virtual Texture *createTexture(const TextureInfo &info) = 0;
+    virtual void destroyTexture(Texture *texture) = 0;
+    virtual bool writeTexture2D(Texture *texture, int x, int y, int w, int h, PixelFormat format, const void *data) = 0;
+    virtual bool writeTextureCube(Texture *texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data) = 0;
+    virtual bool writeTextureArray(Texture *texture, int x, int y, int z, int w, int h, int d, PixelFormat format, const void *data) = 0;
 
-    virtual rendertarget *createRenderTarget(const rendertarget_info &info) = 0;
-    virtual void destroyRenderTarget(rendertarget *target) = 0;
+    virtual RenderTarget *createRenderTarget(const RenderTargetInfo &info) = 0;
+    virtual void destroyRenderTarget(RenderTarget *target) = 0;
 
     virtual ICommandList *createCommandList() = 0;
     virtual void destroyCommandList(ICommandList *commands) = 0;
@@ -502,21 +359,7 @@ public:
     virtual void mode(int width, int height) = 0;
 };
 
-/**
- * Gets the information about the backend
- * needed for the client application.
- */
-UVRE_API void pollBackendInfo(backend_info &info);
-
-/**
- * Creates a new IRenderDevice objects.
- * @return Null on failure.
- */
-UVRE_API IRenderDevice *createDevice(const device_info &info);
-
-/**
- * Destroys an existing IRenderDevice object.
- * Destroys all the objects related to the device.
- */
+UVRE_API void pollBackendInfo(BackendInfo &info);
+UVRE_API IRenderDevice *createDevice(const DeviceInfo &info);
 UVRE_API void destroyDevice(IRenderDevice *device);
 } // namespace uvre

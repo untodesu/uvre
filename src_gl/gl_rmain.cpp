@@ -8,15 +8,15 @@
  */
 #include "gl_private.hpp"
 
-UVRE_API void uvre::pollBackendInfo(uvre::backend_info &info)
+UVRE_API void uvre::pollBackendInfo(uvre::BackendInfo &info)
 {
-    info.family = uvre::backend_family::OPENGL;
+    info.family = uvre::BackendFamily::OPENGL;
     info.gl.core_profile = true;
     info.gl.version_major = 4;
     info.gl.version_minor = 6;
 }
 
-UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::device_info &info)
+UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::DeviceInfo &info)
 {
     if(!info.gl.setSwapInterval || !info.gl.swapBuffers || !info.gl.makeContextCurrent || !info.gl.getProcAddr)
         return nullptr;

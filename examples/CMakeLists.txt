@@ -7,7 +7,7 @@ find_package(glfw3 3.3 REQUIRED)
 function(add_example_executable target)
     add_executable(${target} "${CMAKE_CURRENT_LIST_DIR}/${target}.cpp")
     target_compile_definitions(${target} PRIVATE GLFW_INCLUDE_NONE)
-    target_link_libraries(${target} PRIVATE ${GLFW3_LIBRARY} uvre)
+    target_link_libraries(${target} PRIVATE glfw uvre)
 endfunction()
 
 add_example_executable(base_window)

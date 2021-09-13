@@ -23,7 +23,7 @@
 * _Constants_ follow the **SCREAMING_SNAKE_CASE** style.
 * _Type aliases_ follow the **snake_case** style.
 * _Class names_ follow the **PascalCase** style.
-* _Structure names_ follow the **snake_case** style.
+* _Structure names_ follow the **PascalCase** style.
 * _Function_ and _method names_ follow the **camelCase** style.
 
 ## Namespaces

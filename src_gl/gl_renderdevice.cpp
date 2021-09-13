@@ -97,7 +97,7 @@ uvre::Shader *uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
 {
     std::stringstream ss;
     ss << "#version 460 core\n";
-    ss << "#define UVRE_SOURCE 1\n";
+    ss << "#define _UVRE_ 1\n";
 
     uint32_t stage = 0;
     uint32_t stage_bit = 0;
@@ -105,12 +105,12 @@ uvre::Shader *uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
         case uvre::ShaderStage::VERTEX:
             stage = GL_VERTEX_SHADER;
             stage_bit = GL_VERTEX_SHADER_BIT;
-            ss << "#define VERTEX_SHADER 1\n";
+            ss << "#define _VERTEX_SHADER_ 1\n";
             break;
         case uvre::ShaderStage::FRAGMENT:
             stage = GL_FRAGMENT_SHADER;
             stage_bit = GL_FRAGMENT_SHADER_BIT;
-            ss << "#define FRAGMENT_SHADER 1\n";
+            ss << "#define _FRAGMENT_SHADER_ 1\n";
             break;
     }
 
@@ -126,6 +126,7 @@ uvre::Shader *uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
             glSpecializeShader(shobj, "main", 0, nullptr, nullptr);
             break;
         case uvre::ShaderFormat::SOURCE_GLSL:
+            ss << "#define _GLSL_ 1\n";
             source = ss.str() + reinterpret_cast<const char *>(info.code);
             source_cstr = source.c_str();
             glShaderSource(shobj, 1, &source_cstr, nullptr);

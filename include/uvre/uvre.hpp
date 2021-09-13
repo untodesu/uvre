@@ -62,12 +62,7 @@ enum class PrimitiveMode {
 
 enum class VertexAttribType {
     FLOAT32,
-    FLOAT64,
-    SIGNED_INT8,
-    SIGNED_INT16,
     SIGNED_INT32,
-    UNSIGNED_INT8,
-    UNSIGNED_INT16,
     UNSIGNED_INT32
 };
 

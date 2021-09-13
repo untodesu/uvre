@@ -269,18 +269,8 @@ static uint32_t getAttribType(uvre::VertexAttribType type)
     switch(type) {
         case uvre::VertexAttribType::FLOAT32:
             return GL_FLOAT;
-        case uvre::VertexAttribType::FLOAT64:
-            return GL_DOUBLE;
-        case uvre::VertexAttribType::SIGNED_INT8:
-            return GL_BYTE;
-        case uvre::VertexAttribType::SIGNED_INT16:
-            return GL_SHORT;
         case uvre::VertexAttribType::SIGNED_INT32:
             return GL_INT;
-        case uvre::VertexAttribType::UNSIGNED_INT8:
-            return GL_UNSIGNED_BYTE;
-        case uvre::VertexAttribType::UNSIGNED_INT16:
-            return GL_UNSIGNED_SHORT;
         case uvre::VertexAttribType::UNSIGNED_INT32:
             return GL_UNSIGNED_INT;
         default:

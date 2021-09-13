@@ -482,7 +482,7 @@ void uvre::GLRenderDevice::resizeBuffer(uvre::Buffer *buffer, size_t size, const
 
 bool uvre::GLRenderDevice::writeBuffer(uvre::Buffer *buffer, size_t offset, size_t size, const void *data)
 {
-    if(offset + size >= buffer->size)
+    if(offset + size > buffer->size)
         return false;
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
     return true;

@@ -857,11 +857,11 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
                 glBlitNamedFramebuffer(cmd.rt_copy.src, cmd.rt_copy.dst, cmd.rt_copy.sx0, cmd.rt_copy.sy0, cmd.rt_copy.sx1, cmd.rt_copy.sy1, cmd.rt_copy.dx0, cmd.rt_copy.dy0, cmd.rt_copy.dx1, cmd.rt_copy.dy1, cmd.rt_copy.mask, cmd.rt_copy.filter);
                 break;
             case uvre::CommandType::DRAW:
-                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw)), &cmd.draw);
+                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw.a)), &cmd.draw.a);
                 glDrawArraysIndirect(bound_pipeline.primitive_mode, nullptr);
                 break;
             case uvre::CommandType::IDRAW:
-                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.idraw)), &cmd.idraw);
+                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw.e)), &cmd.draw.e);
                 glDrawElementsIndirect(bound_pipeline.primitive_mode, bound_pipeline.index_type, nullptr);
                 break;
         }

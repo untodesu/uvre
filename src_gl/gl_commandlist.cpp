@@ -193,10 +193,10 @@ void uvre::GLCommandList::draw(size_t vertices, size_t instances, size_t base_ve
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::DRAW;
-    cmd.draw.vertices = static_cast<uint32_t>(vertices);
-    cmd.draw.instances = static_cast<uint32_t>(instances);
-    cmd.draw.base_vertex = static_cast<uint32_t>(base_vertex);
-    cmd.draw.base_instance = static_cast<uint32_t>(base_instance);
+    cmd.draw.a.vertices = static_cast<uint32_t>(vertices);
+    cmd.draw.a.instances = static_cast<uint32_t>(instances);
+    cmd.draw.a.base_vertex = static_cast<uint32_t>(base_vertex);
+    cmd.draw.a.base_instance = static_cast<uint32_t>(base_instance);
     pushCommand(commands, cmd, num_commands++);
 }
 
@@ -204,10 +204,10 @@ void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_in
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::IDRAW;
-    cmd.idraw.indices = static_cast<uint32_t>(indices);
-    cmd.idraw.instances = static_cast<uint32_t>(instances);
-    cmd.idraw.base_index = static_cast<uint32_t>(base_index);
-    cmd.idraw.base_vertex = static_cast<uint32_t>(base_vertex);
-    cmd.idraw.base_instance = static_cast<uint32_t>(base_instance);
+    cmd.draw.e.indices = static_cast<uint32_t>(indices);
+    cmd.draw.e.instances = static_cast<uint32_t>(instances);
+    cmd.draw.e.base_index = static_cast<uint32_t>(base_index);
+    cmd.draw.e.base_vertex = static_cast<uint32_t>(base_vertex);
+    cmd.draw.e.base_instance = static_cast<uint32_t>(base_instance);
     pushCommand(commands, cmd, num_commands++);
 }

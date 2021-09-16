@@ -95,6 +95,22 @@ enum class CommandType {
     IDRAW
 };
 
+union DrawCmd final {
+    struct {
+        uint32_t vertices;
+        uint32_t instances;
+        uint32_t base_vertex;
+        uint32_t base_instance;
+    } a;
+    struct {
+        uint32_t indices;
+        uint32_t instances;
+        uint32_t base_index;
+        uint32_t base_vertex;
+        uint32_t base_instance;
+    } e;
+};
+
 struct Command final {
     CommandType type;
     uint32_t bind_index;
@@ -121,36 +137,8 @@ struct Command final {
             uint32_t mask;
             uint32_t filter;
         } rt_copy;
-        struct {
-            uint32_t vertices;
-            uint32_t instances;
-            uint32_t base_vertex;
-            uint32_t base_instance;
-        } draw;
-        struct {
-            uint32_t indices;
-            uint32_t instances;
-            uint32_t base_index;
-            uint32_t base_vertex;
-            uint32_t base_instance;
-        } idraw;
+        DrawCmd draw;
     };
-};
-
-union DrawCmd final {
-    struct {
-        uint32_t vertices;
-        uint32_t instances;
-        uint32_t base_vertex;
-        uint32_t base_instance;
-    } a;
-    struct {
-        uint32_t indices;
-        uint32_t instances;
-        uint32_t base_index;
-        uint32_t base_vertex;
-        uint32_t base_instance;
-    } e;
 };
 
 class GLRenderDevice;

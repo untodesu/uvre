@@ -35,12 +35,12 @@ void uvre::GLCommandList::setViewport(int x, int y, int width, int height)
     glScissor(x, y, width, height);
 }
 
-void uvre::GLCommandList::clearColor3f(float r, float g, float b)
+void uvre::GLCommandList::setClearColor3f(float r, float g, float b)
 {
     glClearColor(r, g, b, 1.0f);
 }
 
-void uvre::GLCommandList::clearColor4f(float r, float g, float b, float a)
+void uvre::GLCommandList::setClearColor4f(float r, float g, float b, float a)
 {
     glClearColor(r, g, b, a);
 }
@@ -50,9 +50,9 @@ void uvre::GLCommandList::clear(uvre::RenderTargetMask mask)
     glClear(getTargetMask(mask));
 }
 
-void uvre::GLCommandList::bindPipeline(uvre::Pipeline *pipeline)
+void uvre::GLCommandList::bindPipeline(uvre::Pipeline pipeline)
 {
-    owner->bound_pipeline = pipeline ? pipeline : &owner->null_pipeline;
+    owner->bound_pipeline = pipeline ? pipeline : owner->null_pipeline;
 
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -81,24 +81,24 @@ void uvre::GLCommandList::bindPipeline(uvre::Pipeline *pipeline)
     glBindVertexArray(owner->bound_pipeline->vaobj);
 }
 
-void uvre::GLCommandList::bindStorageBuffer(uvre::Buffer *buffer, uint32_t index)
+void uvre::GLCommandList::bindStorageBuffer(uvre::Buffer buffer, uint32_t index)
 {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, buffer ? buffer->bufobj : 0);
 }
 
-void uvre::GLCommandList::bindUniformBuffer(uvre::Buffer *buffer, uint32_t index)
+void uvre::GLCommandList::bindUniformBuffer(uvre::Buffer buffer, uint32_t index)
 {
     glBindBufferBase(GL_UNIFORM_BUFFER, index, buffer ? buffer->bufobj : 0);
 }
 
-void uvre::GLCommandList::bindIndexBuffer(uvre::Buffer *buffer)
+void uvre::GLCommandList::bindIndexBuffer(uvre::Buffer buffer)
 {
     if(!owner->bound_pipeline->vaobj)
         return;
     glVertexArrayElementBuffer(owner->bound_pipeline->vaobj, buffer ? buffer->bufobj : 0);
 }
 
-void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer *buffer)
+void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer buffer)
 {
     if(!buffer->vbo || !owner->bound_pipeline->vaobj)
         return;
@@ -106,27 +106,27 @@ void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer *buffer)
         glVertexArrayAttribBinding(owner->bound_pipeline->vaobj, attrib.id, buffer->vbo->index);
 }
 
-void uvre::GLCommandList::bindSampler(uvre::Sampler *sampler, uint32_t index)
+void uvre::GLCommandList::bindSampler(uvre::Sampler sampler, uint32_t index)
 {
     glBindSampler(index, sampler ? sampler->ssobj : 0);
 }
 
-void uvre::GLCommandList::bindTexture(uvre::Texture *texture, uint32_t index)
+void uvre::GLCommandList::bindTexture(uvre::Texture texture, uint32_t index)
 {
     glBindTextureUnit(index, texture ? texture->texobj : 0);
 }
 
-void uvre::GLCommandList::bindRenderTarget(uvre::RenderTarget *target)
+void uvre::GLCommandList::bindRenderTarget(uvre::RenderTarget target)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, target ? target->fbobj : 0);
 }
 
-bool uvre::GLCommandList::writeBuffer(uvre::Buffer *buffer, size_t offset, size_t size, const void *data)
+void uvre::GLCommandList::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
 {
-    return owner->writeBuffer(buffer, offset, size, data);
+    owner->writeBuffer(buffer, offset, size, data);
 }
 
-void uvre::GLCommandList::copyRenderTarget(uvre::RenderTarget *src, uvre::RenderTarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::RenderTargetMask mask, bool filter)
+void uvre::GLCommandList::copyRenderTarget(uvre::RenderTarget src, uvre::RenderTarget dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::RenderTargetMask mask, bool filter)
 {
     glBlitNamedFramebuffer(src ? src->fbobj : 0, dst ? dst->fbobj : 0, sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, getTargetMask(mask), filter ? GL_LINEAR : GL_NEAREST);
 }

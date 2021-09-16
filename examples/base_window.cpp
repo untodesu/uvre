@@ -132,7 +132,7 @@ int main()
 
         // Setup the clear color and clear the screen.
         // After that the screen should turn a nice dark magenta.
-        commands->clearColor3f(0.25f, 0.00f, 0.25f);
+        commands->setClearColor3f(0.25f, 0.00f, 0.25f);
         commands->clear(uvre::RT_COLOR_BUFFER);
 
         // Finish recording and submit the command list.

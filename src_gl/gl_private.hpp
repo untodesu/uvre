@@ -22,13 +22,13 @@ struct VBOBinding final {
     VBOBinding *next;
 };
 
-struct Shader final {
+struct Shader_S final {
     uint32_t prog;
     uint32_t stage_bit;
     ShaderStage stage;
 };
 
-struct Pipeline final {
+struct Pipeline_S final {
     uint32_t ppobj;
     uint32_t vaobj;
     struct {
@@ -53,13 +53,13 @@ struct Pipeline final {
     std::vector<VertexAttrib> attributes;
 };
 
-struct Buffer final {
+struct Buffer_S final {
     uint32_t bufobj;
     VBOBinding *vbo;
     size_t size;
 };
 
-struct Texture final {
+struct Texture_S final {
     uint32_t texobj;
     uint32_t format;
     int width;
@@ -67,11 +67,11 @@ struct Texture final {
     int depth;
 };
 
-struct Sampler final {
+struct Sampler_S final {
     uint32_t ssobj;
 };
 
-struct RenderTarget final {
+struct RenderTarget_S final {
     uint32_t fbobj;
 };
 
@@ -94,29 +94,29 @@ union DrawCmd final {
 class GLRenderDevice;
 class GLCommandList final : public ICommandList {
 public:
-    GLCommandList(GLRenderDevice *device);
+    GLCommandList(GLRenderDevice *owner);
 
-    void setScissor(int x, int y, int width, int height);
-    void setViewport(int x, int y, int width, int height);
+    void setScissor(int x, int y, int width, int height) override;
+    void setViewport(int x, int y, int width, int height) override;
 
-    void clearColor3f(float r, float g, float b);
-    void clearColor4f(float r, float g, float b, float a);
-    void clear(RenderTargetMask mask);
+    void setClearColor3f(float r, float g, float b) override;
+    void setClearColor4f(float r, float g, float b, float a) override;
+    void clear(RenderTargetMask mask) override;
 
-    void bindPipeline(Pipeline *pipeline);
-    void bindUniformBuffer(Buffer *buffer, uint32_t index);
-    void bindStorageBuffer(Buffer *buffer, uint32_t index);
-    void bindIndexBuffer(Buffer *buffer);
-    void bindVertexBuffer(Buffer *buffer);
-    void bindSampler(Sampler *sampler, uint32_t index);
-    void bindTexture(Texture *texture, uint32_t index);
-    void bindRenderTarget(RenderTarget *target);
+    void bindPipeline(Pipeline pipeline) override;
+    void bindUniformBuffer(Buffer buffer, uint32_t index) override;
+    void bindStorageBuffer(Buffer buffer, uint32_t index) override;
+    void bindIndexBuffer(Buffer buffer) override;
+    void bindVertexBuffer(Buffer buffer) override;
+    void bindSampler(Sampler sampler, uint32_t index) override;
+    void bindTexture(Texture texture, uint32_t index) override;
+    void bindRenderTarget(RenderTarget target) override;
 
-    bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data);
-    void copyRenderTarget(RenderTarget *src, RenderTarget *dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, RenderTargetMask mask, bool filter);
+    void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) override;
+    void copyRenderTarget(RenderTarget src, RenderTarget dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, RenderTargetMask mask, bool filter) override;
 
-    void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance);
-    void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance);
+    void draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance) override;
+    void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance) override;
 
 public:
     GLRenderDevice *owner;
@@ -127,52 +127,37 @@ public:
     GLRenderDevice(const DeviceInfo &info);
     virtual ~GLRenderDevice();
 
-    Shader *createShader(const ShaderInfo &info);
-    void destroyShader(Shader *shader);
+    Shader createShader(const ShaderInfo &info) override;
+    Pipeline createPipeline(const PipelineInfo &info) override;
+    Buffer createBuffer(const BufferInfo &info) override;
+    Sampler createSampler(const SamplerInfo &info) override;
+    Texture createTexture(const TextureInfo &info) override;
+    RenderTarget createRenderTarget(const RenderTargetInfo &info) override;
+    
+    void resizeBuffer(Buffer buffer, size_t size, const void *data) override;
+    void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) override;
+    void writeTexture2D(Texture texture, int x, int y, int w, int h, PixelFormat format, const void *data) override;
+    void writeTextureCube(Texture texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data) override;
+    void writeTextureArray(Texture texture, int x, int y, int z, int w, int h, int d, PixelFormat format, const void *data) override;
 
-    Pipeline *createPipeline(const PipelineInfo &info);
-    void destroyPipeline(Pipeline *pipeline);
+    ICommandList *createCommandList() override;
+    void destroyCommandList(ICommandList *commands) override;
+    void startRecording(ICommandList *commands) override;
+    void submit(ICommandList *commands) override;
 
-    Buffer *createBuffer(const BufferInfo &info);
-    void destroyBuffer(Buffer *buffer);
-    void resizeBuffer(Buffer *buffer, size_t size, const void *data);
-    bool writeBuffer(Buffer *buffer, size_t offset, size_t size, const void *data);
-
-    Sampler *createSampler(const SamplerInfo &info);
-    void destroySampler(Sampler *sampler);
-
-    Texture *createTexture(const TextureInfo &info);
-    void destroyTexture(Texture *texture);
-    bool writeTexture2D(Texture *texture, int x, int y, int w, int h, PixelFormat format, const void *data);
-    bool writeTextureCube(Texture *texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data);
-    bool writeTextureArray(Texture *texture, int x, int y, int z, int w, int h, int d, PixelFormat format, const void *data);
-
-    RenderTarget *createRenderTarget(const RenderTargetInfo &info);
-    void destroyRenderTarget(RenderTarget *target);
-
-    ICommandList *createCommandList();
-    void destroyCommandList(ICommandList *commands);
-    void startRecording(ICommandList *commands);
-    void submit(ICommandList *commands);
-
-    // TODO: ISwapChain? Are we gonna support headless rendering?
-    void prepare();
-    void present();
-    void vsync(bool enable);
-    void mode(int width, int height);
+    void prepare() override;
+    void present() override;
+    void vsync(bool enable) override;
+    void mode(int width, int height) override;
 
 public:
     uint32_t idbo;
     DeviceInfo info;
     VBOBinding *vbos;
     Pipeline null_pipeline;
-    Pipeline *bound_pipeline;
-    std::vector<Shader *> shaders;
-    std::vector<Pipeline *> pipelines;
-    std::vector<Buffer *> buffers;
-    std::vector<Sampler *> samplers;
-    std::vector<Texture *> textures;
-    std::vector<RenderTarget *> rendertargets;
+    Pipeline bound_pipeline;
+    std::vector<Pipeline_S *> pipelines;
+    std::vector<Buffer_S *> buffers;
     std::vector<GLCommandList *> commandlists;
 };
 

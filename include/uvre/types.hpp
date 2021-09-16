@@ -5,6 +5,14 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #pragma once
-#include <uvre/commandlist.hpp>
-#include <uvre/renderdevice.hpp>
-#include <uvre/types.hpp>
+#include <cstddef>
+#include <cstdint>
+
+namespace uvre
+{
+using std::size_t;
+using std::uint16_t;
+using std::uint32_t;
+using Index16 = uint16_t;
+using Index32 = uint32_t;
+} // namespace uvre

@@ -6,6 +6,7 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <functional>
 #include "gl_private.hpp"
 
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
@@ -14,8 +15,62 @@ static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, co
     info->onMessage(message);
 }
 
+static void destroyShader(uvre::Shader_S *shader)
+{
+    glDeleteProgram(shader->prog);
+    delete shader;
+}
+
+static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GLRenderDevice *device)
+{
+    // Remove ourselves from the notify list.
+    for(std::vector<uvre::Pipeline_S *>::const_iterator it = device->pipelines.cbegin(); it != device->pipelines.cend(); it++) {
+        if(*it != pipeline)
+            continue;
+        device->pipelines.erase(it);
+        break;
+    }
+
+    glDeleteProgramPipelines(1, &pipeline->ppobj);
+    glDeleteVertexArrays(1, &pipeline->vaobj);
+    delete pipeline;
+}
+
+static void destroyBuffer(uvre::Buffer_S *buffer, uvre::GLRenderDevice *device)
+{
+    // Remove ourselves from the notify list.
+    for(std::vector<uvre::Buffer_S *>::const_iterator it = device->buffers.cbegin(); it != device->buffers.cend(); it++) {
+        if(*it != buffer)
+            continue;
+        device->buffers.erase(it);
+        buffer->vbo->is_free = true;
+        break;
+    }
+
+    glDeleteBuffers(1, &buffer->bufobj);
+    delete buffer;
+}
+
+static void destroySampler(uvre::Sampler_S *sampler)
+{
+    glDeleteSamplers(1, &sampler->ssobj);
+    delete sampler;
+}
+
+static void destroyTexture(uvre::Texture_S *texture)
+{
+    glDeleteTextures(1, &texture->texobj);
+    delete texture;
+}
+
+static void destroyRenderTarget(uvre::RenderTarget_S *target)
+{
+    glDeleteFramebuffers(1, &target->fbobj);
+    delete target;
+}
+
 uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
-    : info(info), vbos(nullptr), null_pipeline(), bound_pipeline(&null_pipeline), shaders(), pipelines(), buffers(), samplers(), textures(), rendertargets(), commandlists()
+    : info(info), vbos(nullptr), null_pipeline(), pipelines(), buffers(), commandlists()
 {
     glCreateBuffers(1, &idbo);
     glNamedBufferData(idbo, static_cast<GLsizeiptr>(sizeof(uvre::DrawCmd)), nullptr, GL_DYNAMIC_DRAW);
@@ -25,14 +80,15 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
     vbos->is_free = true;
     vbos->next = nullptr;
 
-    null_pipeline.vaobj = 0;
-    null_pipeline.ppobj = 0;
-    null_pipeline.blending.enabled = false;
-    null_pipeline.depth_testing.enabled = false;
-    null_pipeline.face_culling.enabled = false;
-    null_pipeline.index_type = GL_UNSIGNED_SHORT;
-    null_pipeline.primitive_mode = GL_LINE_STRIP;
-    null_pipeline.fill_mode = GL_LINE;
+    null_pipeline = std::make_shared<uvre::Pipeline_S>();
+    null_pipeline->vaobj = 0;
+    null_pipeline->ppobj = 0;
+    null_pipeline->blending.enabled = false;
+    null_pipeline->depth_testing.enabled = false;
+    null_pipeline->face_culling.enabled = false;
+    null_pipeline->index_type = GL_UNSIGNED_SHORT;
+    null_pipeline->primitive_mode = GL_LINE_STRIP;
+    null_pipeline->fill_mode = GL_LINE;
 
     if(this->info.onMessage) {
         glEnable(GL_DEBUG_OUTPUT);
@@ -43,47 +99,11 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
 
 uvre::GLRenderDevice::~GLRenderDevice()
 {
-    for(uvre::ICommandList *commands : commandlists) {
-        delete commands;
-    }
+    for(uvre::GLCommandList *commandlist : commandlists)
+        delete commandlist;
 
-    for(uvre::RenderTarget *target : rendertargets) {
-        glDeleteFramebuffers(1, &target->fbobj);
-        delete target;
-    }
-
-    for(uvre::Sampler *sampler : samplers) {
-        glDeleteSamplers(1, &sampler->ssobj);
-        delete sampler;
-    }
-
-    for(uvre::Texture *texture : textures) {
-        glDeleteTextures(1, &texture->texobj);
-        delete texture;
-    }
-
-    for(uvre::Buffer *buffer : buffers) {
-        glDeleteBuffers(1, &buffer->bufobj);
-        delete buffer;
-    }
-
-    for(uvre::Pipeline *pipeline : pipelines) {
-        glDeleteVertexArrays(1, &pipeline->vaobj);
-        glDeleteProgramPipelines(1, &pipeline->ppobj);
-        delete pipeline;
-    }
-
-    for(uvre::Shader *shader : shaders) {
-        glDeleteProgram(shader->prog);
-        delete shader;
-    }
-
-    shaders.clear();
     pipelines.clear();
     buffers.clear();
-    textures.clear();
-    samplers.clear();
-    rendertargets.clear();
     commandlists.clear();
 
     // Make sure that the GL context doesn't use it anymore
@@ -93,7 +113,7 @@ uvre::GLRenderDevice::~GLRenderDevice()
     glDeleteBuffers(1, &idbo);
 }
 
-uvre::Shader *uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
+uvre::Shader uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
 {
     std::stringstream ss;
     ss << "#version 460 core\n";
@@ -173,25 +193,12 @@ uvre::Shader *uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
         return nullptr;
     }
 
-    uvre::Shader *shader = new uvre::Shader;
+    uvre::Shader shader(new uvre::Shader_S, destroyShader);
     shader->prog = prog;
     shader->stage = info.stage;
     shader->stage_bit = stage_bit;
 
-    shaders.push_back(shader);
     return shader;
-}
-
-void uvre::GLRenderDevice::destroyShader(uvre::Shader *shader)
-{
-    for(std::vector<uvre::Shader *>::const_iterator it = shaders.cbegin(); it != shaders.cend(); it++) {
-        if(*it == shader) {
-            shaders.erase(it);
-            glDeleteProgram(shader->prog);
-            delete shader;
-            return;
-        }
-    }
 }
 
 static inline uint32_t getBlendEquation(uvre::BlendEquation equation)
@@ -337,9 +344,9 @@ static inline uint32_t getFillMode(uvre::FillMode mode)
     }
 }
 
-uvre::Pipeline *uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &info)
+uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &info)
 {
-    uvre::Pipeline *pipeline = new uvre::Pipeline;
+    uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
     glCreateProgramPipelines(1, &pipeline->ppobj);
     glCreateVertexArrays(1, &pipeline->vaobj);
@@ -371,29 +378,16 @@ uvre::Pipeline *uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &i
         }
     }
 
-    // Add all the existing vertex buffers to this pipeline
-    for(uvre::Buffer *buffer : buffers) {
-        if(buffer->vbo) {
-            // offset is zero and that is hardcoded
-            glVertexArrayVertexBuffer(pipeline->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
-        }
+    // Notify the buffers
+    for(uvre::Buffer_S *buffer : buffers) {
+        // offset is zero and that is hardcoded
+        glVertexArrayVertexBuffer(pipeline->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
     }
 
-    pipelines.push_back(pipeline);
+    // Add ourselves to the notify list.
+    pipelines.push_back(pipeline.get());
+
     return pipeline;
-}
-
-void uvre::GLRenderDevice::destroyPipeline(uvre::Pipeline *pipeline)
-{
-    for(std::vector<uvre::Pipeline *>::const_iterator it = pipelines.cbegin(); it != pipelines.cend(); it++) {
-        if(*it == pipeline) {
-            pipelines.erase(it);
-            glDeleteVertexArrays(1, &pipeline->vaobj);
-            glDeleteProgramPipelines(1, &pipeline->ppobj);
-            delete pipeline;
-            return;
-        }
-    }
 }
 
 static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **begin)
@@ -420,9 +414,9 @@ static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **begin)
     return nullptr;
 }
 
-uvre::Buffer *uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
+uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
 {
-    uvre::Buffer *buffer = new uvre::Buffer;
+    uvre::Buffer buffer(new uvre::Buffer_S, std::bind(destroyBuffer, std::placeholders::_1, this));
 
     glCreateBuffers(1, &buffer->bufobj);
 
@@ -433,52 +427,35 @@ uvre::Buffer *uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
         buffer->vbo = getFreeVBOBinding(&vbos);
         buffer->vbo->is_free = false;
 
-        // Add this buffer to all the existing pipelines
-        // with the respective vertex stride
-        for(uvre::Pipeline *pipeline : pipelines) {
+        // Notify the pipeline objects
+        for(uvre::Pipeline_S *pipeline : pipelines) {
             // offset is zero and that is hardcoded
             glVertexArrayVertexBuffer(pipeline->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
         }
+
+        // Add ourselves to the notify list
+        buffers.push_back(buffer.get());
     }
 
-    if(buffer->size) {
-        // Pre-allocate the buffer
+    if(buffer->size) 
         glNamedBufferData(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), info.data, GL_DYNAMIC_DRAW);
-    }
-
-    buffers.push_back(buffer);
     return buffer;
 }
 
-void uvre::GLRenderDevice::destroyBuffer(uvre::Buffer *buffer)
-{
-    for(std::vector<uvre::Buffer *>::const_iterator it = buffers.cbegin(); it != buffers.cend(); it++) {
-        if(*it == buffer) {
-            buffers.erase(it);
-            glDeleteBuffers(1, &buffer->bufobj);
-            if(buffer->vbo)
-                buffer->vbo->is_free = true;
-            delete buffer;
-            return;
-        }
-    }
-}
-
-void uvre::GLRenderDevice::resizeBuffer(uvre::Buffer *buffer, size_t size, const void *data)
+void uvre::GLRenderDevice::resizeBuffer(uvre::Buffer buffer, size_t size, const void *data)
 {
     buffer->size = size;
     glNamedBufferData(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), data, GL_DYNAMIC_DRAW);
 }
 
-bool uvre::GLRenderDevice::writeBuffer(uvre::Buffer *buffer, size_t offset, size_t size, const void *data)
+void uvre::GLRenderDevice::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
 {
     if(offset + size > buffer->size)
-        return false;
+        return;
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
-    return true;
 }
 
-uvre::Sampler *uvre::GLRenderDevice::createSampler(const uvre::SamplerInfo &info)
+uvre::Sampler uvre::GLRenderDevice::createSampler(const uvre::SamplerInfo &info)
 {
     uint32_t ssobj;
     glCreateSamplers(1, &ssobj);
@@ -502,23 +479,10 @@ uvre::Sampler *uvre::GLRenderDevice::createSampler(const uvre::SamplerInfo &info
     glSamplerParameterf(ssobj, GL_TEXTURE_MAX_LOD, info.max_lod);
     glSamplerParameterf(ssobj, GL_TEXTURE_LOD_BIAS, info.lod_bias);
 
-    uvre::Sampler *sampler = new uvre::Sampler;
+    uvre::Sampler sampler(new uvre::Sampler_S, destroySampler);
     sampler->ssobj = ssobj;
 
-    samplers.push_back(sampler);
     return sampler;
-}
-
-void uvre::GLRenderDevice::destroySampler(uvre::Sampler *sampler)
-{
-    for(std::vector<uvre::Sampler *>::const_iterator it = samplers.cbegin(); it != samplers.cend(); it++) {
-        if(*it == sampler) {
-            samplers.erase(it);
-            glDeleteSamplers(1, &sampler->ssobj);
-            delete sampler;
-            return;
-        }
-    }
 }
 
 static inline uint32_t getInternalFormat(uvre::PixelFormat format)
@@ -615,47 +579,36 @@ static inline uint32_t getInternalFormat(uvre::PixelFormat format)
     }
 }
 
-uvre::Texture *uvre::GLRenderDevice::createTexture(const uvre::TextureInfo &info)
+uvre::Texture uvre::GLRenderDevice::createTexture(const uvre::TextureInfo &info)
 {
-    uvre::Texture *texture = new uvre::Texture;
-
-    texture->format = getInternalFormat(info.format);
-    texture->width = static_cast<int>(info.width);
-    texture->height = static_cast<int>(info.height);
-    texture->depth = static_cast<int>(info.depth);
+    uint32_t texobj;
+    uint32_t format = getInternalFormat(info.format);
 
     switch(info.type) {
         case uvre::TextureType::TEXTURE_2D:
-            glCreateTextures(GL_TEXTURE_2D, 1, &texture->texobj);
-            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
+            glCreateTextures(GL_TEXTURE_2D, 1, &texobj);
+            glTextureStorage2D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height);
             break;
         case uvre::TextureType::TEXTURE_CUBE:
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture->texobj);
-            glTextureStorage2D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height);
+            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texobj);
+            glTextureStorage2D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height);
             break;
         case uvre::TextureType::TEXTURE_ARRAY:
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->texobj);
-            glTextureStorage3D(texture->texobj, std::max<uint32_t>(1, info.mip_levels), texture->format, texture->width, texture->height, texture->depth);
+            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texobj);
+            glTextureStorage3D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height, info.depth);
             break;
         default:
-            delete texture;
             return nullptr;
     }
 
-    textures.push_back(texture);
-    return texture;
-}
+    uvre::Texture texture(new uvre::Texture_S, destroyTexture);
+    texture->texobj = texobj;
+    texture->format = format;
+    texture->width = info.width;
+    texture->height = info.height;
+    texture->depth = info.depth;
 
-void uvre::GLRenderDevice::destroyTexture(uvre::Texture *texture)
-{
-    for(std::vector<uvre::Texture *>::const_iterator it = textures.cbegin(); it != textures.cend(); it++) {
-        if(*it == texture) {
-            textures.erase(it);
-            glDeleteTextures(1, &texture->texobj);
-            delete texture;
-            return;
-        }
-    }
+    return texture;
 }
 
 static bool getExternalFormat(uvre::PixelFormat format, uint32_t &fmt, uint32_t &type)
@@ -771,40 +724,31 @@ static bool getExternalFormat(uvre::PixelFormat format, uint32_t &fmt, uint32_t 
     return true;
 }
 
-bool uvre::GLRenderDevice::writeTexture2D(uvre::Texture *texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::GLRenderDevice::writeTexture2D(uvre::Texture texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, data);
-        return true;
-    }
-
-    return false;
+    if(!getExternalFormat(format, fmt, type))
+        return;
+    glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, data);
 }
 
-bool uvre::GLRenderDevice::writeTextureCube(uvre::Texture *texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::GLRenderDevice::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, data);
-        return true;
-    }
-
-    return false;
+    if(!getExternalFormat(format, fmt, type))
+        return;
+    glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, data);
 }
 
-bool uvre::GLRenderDevice::writeTextureArray(uvre::Texture *texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
+void uvre::GLRenderDevice::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
-    if(getExternalFormat(format, fmt, type)) {
-        glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
-        return true;
-    }
-
-    return false;
+    if(!getExternalFormat(format, fmt, type)) 
+        return;
+    glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
 }
 
-uvre::RenderTarget *uvre::GLRenderDevice::createRenderTarget(const uvre::RenderTargetInfo &info)
+uvre::RenderTarget uvre::GLRenderDevice::createRenderTarget(const uvre::RenderTargetInfo &info)
 {
     uint32_t fbobj;
     glCreateFramebuffers(1, &fbobj);
@@ -820,23 +764,10 @@ uvre::RenderTarget *uvre::GLRenderDevice::createRenderTarget(const uvre::RenderT
         return nullptr;
     }
 
-    uvre::RenderTarget *target = new uvre::RenderTarget;
+    uvre::RenderTarget target(new uvre::RenderTarget_S, destroyRenderTarget);
     target->fbobj = fbobj;
 
-    rendertargets.push_back(target);
     return target;
-}
-
-void uvre::GLRenderDevice::destroyRenderTarget(uvre::RenderTarget *target)
-{
-    for(std::vector<uvre::RenderTarget *>::const_iterator it = rendertargets.cbegin(); it != rendertargets.cend(); it++) {
-        if(*it == target) {
-            rendertargets.erase(it);
-            glDeleteFramebuffers(1, &target->fbobj);
-            delete target;
-            return;
-        }
-    }
 }
 
 uvre::ICommandList *uvre::GLRenderDevice::createCommandList()

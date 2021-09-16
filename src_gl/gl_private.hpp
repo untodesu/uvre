@@ -211,16 +211,5 @@ public:
     std::vector<GLCommandList *> commandlists;
 };
 
-constexpr static const Pipeline_S NULL_PIPELINE = {
-    .ppobj = 0,
-    .vaobj = 0,
-    .blending = { .enabled = false },
-    .depth_testing = { .enabled = false },
-    .face_culling = { .enabled = false },
-    .index_type = GL_UNSIGNED_SHORT,
-    .primitive_mode = GL_TRIANGLES,
-    .fill_mode = GL_FILL,
-    .vertex_stride = 0,
-    .num_attributes = 0
-};
+constexpr static const Pipeline_S NULL_PIPELINE = { 0,  0, { false }, { false }, { false }, GL_UNSIGNED_SHORT, GL_TRIANGLES, GL_FILL };
 } // namespace uvre

@@ -70,7 +70,7 @@ static void destroyRenderTarget(uvre::RenderTarget_S *target)
 }
 
 uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
-    : info(info), vbos(nullptr), null_pipeline(), pipelines(), buffers(), commandlists()
+    : info(info), vbos(nullptr), bound_pipeline(NULL_PIPELINE), pipelines(), buffers(), commandlists()
 {
     glCreateBuffers(1, &idbo);
     glNamedBufferData(idbo, static_cast<GLsizeiptr>(sizeof(uvre::DrawCmd)), nullptr, GL_DYNAMIC_DRAW);
@@ -79,16 +79,6 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
     vbos->index = 0;
     vbos->is_free = true;
     vbos->next = nullptr;
-
-    null_pipeline = std::make_shared<uvre::Pipeline_S>();
-    null_pipeline->vaobj = 0;
-    null_pipeline->ppobj = 0;
-    null_pipeline->blending.enabled = false;
-    null_pipeline->depth_testing.enabled = false;
-    null_pipeline->face_culling.enabled = false;
-    null_pipeline->index_type = GL_UNSIGNED_SHORT;
-    null_pipeline->primitive_mode = GL_LINE_STRIP;
-    null_pipeline->fill_mode = GL_LINE;
 
     if(this->info.onMessage) {
         glEnable(GL_DEBUG_OUTPUT);
@@ -364,9 +354,12 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     pipeline->primitive_mode = getPrimitiveType(info.primitive_mode);
     pipeline->fill_mode = getFillMode(info.fill_mode);
     pipeline->vertex_stride = info.vertex_stride;
-    pipeline->attributes = std::vector<uvre::VertexAttrib>(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs);
+    pipeline->num_attributes = info.num_vertex_attribs;
+    pipeline->attributes = new uvre::VertexAttrib[pipeline->num_attributes];
+    std::copy(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs, pipeline->attributes);
 
-    for(const uvre::VertexAttrib &attrib : pipeline->attributes) {
+    for(size_t i = 0; i < pipeline->num_attributes; i++) {
+        uvre::VertexAttrib &attrib = pipeline->attributes[i];
         glEnableVertexArrayAttrib(pipeline->vaobj, attrib.id);
         glVertexArrayAttribFormat(pipeline->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
     }
@@ -772,7 +765,7 @@ uvre::RenderTarget uvre::GLRenderDevice::createRenderTarget(const uvre::RenderTa
 
 uvre::ICommandList *uvre::GLRenderDevice::createCommandList()
 {
-    uvre::GLCommandList *commands = new uvre::GLCommandList(this);
+    uvre::GLCommandList *commands = new uvre::GLCommandList();
     commandlists.push_back(commands);
     return commands;
 }
@@ -788,14 +781,91 @@ void uvre::GLRenderDevice::destroyCommandList(uvre::ICommandList *commands)
     }
 }
 
-void uvre::GLRenderDevice::startRecording(uvre::ICommandList *)
+void uvre::GLRenderDevice::startRecording(uvre::ICommandList *commands)
 {
-    // Nothing in OpenGL
+    uvre::GLCommandList *glcommands = static_cast<uvre::GLCommandList *>(commands);
+    glcommands->num_commands = 0;
 }
 
-void uvre::GLRenderDevice::submit(uvre::ICommandList *)
+void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
 {
-    // Nothing in OpenGL
+    uvre::GLCommandList *glcommands = static_cast<uvre::GLCommandList *>(commands);
+    for(size_t i = 0; i < glcommands->num_commands; i++) {
+        const uvre::Command &cmd = glcommands->commands[i];
+        switch(cmd.type) {
+            case uvre::CommandType::SET_SCISSOR:
+                glScissor(cmd.scvp.x, cmd.scvp.y, cmd.scvp.w, cmd.scvp.h);
+                break;
+            case uvre::CommandType::SET_VIEWPORT:
+                glViewport(cmd.scvp.x, cmd.scvp.y, cmd.scvp.w, cmd.scvp.h);
+                break;
+            case uvre::CommandType::SET_CLEAR_COLOR:
+                glClearColor(cmd.color[0], cmd.color[1], cmd.color[2], cmd.color[3]);
+                break;
+            case uvre::CommandType::CLEAR:
+                glClear(cmd.clear_mask);
+                break;
+            case uvre::CommandType::BIND_PIPELINE:
+                bound_pipeline = cmd.pipeline;
+                glDisable(GL_BLEND);
+                glDisable(GL_DEPTH_TEST);
+                glDisable(GL_CULL_FACE);
+                if(bound_pipeline.blending.enabled) {
+                    glEnable(GL_BLEND);
+                    glBlendEquation(bound_pipeline.blending.equation);
+                    glBlendFunc(bound_pipeline.blending.sfactor, bound_pipeline.blending.dfactor);
+                }
+                if(bound_pipeline.depth_testing.enabled) {
+                    glEnable(GL_DEPTH_TEST);
+                    glDepthFunc(bound_pipeline.depth_testing.func);
+                }
+                if(bound_pipeline.face_culling.enabled) {
+                    glEnable(GL_CULL_FACE);
+                    glCullFace(bound_pipeline.face_culling.cull_face);
+                    glFrontFace(bound_pipeline.face_culling.front_face);
+                }
+                glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline.fill_mode);
+                glBindProgramPipeline(bound_pipeline.ppobj);
+                glBindVertexArray(bound_pipeline.vaobj);
+                break;
+            case uvre::CommandType::BIND_STORAGE_BUFFER:
+                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, cmd.bind_index, cmd.object);
+                break;
+            case uvre::CommandType::BIND_UNIFORM_BUFFER:
+                glBindBufferBase(GL_UNIFORM_BUFFER, cmd.bind_index, cmd.object);
+                break;
+            case uvre::CommandType::BIND_INDEX_BUFFER:
+                glVertexArrayElementBuffer(bound_pipeline.vaobj, cmd.object);
+                break;
+            case uvre::CommandType::BIND_VERTEX_BUFFER:
+                for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
+                    glVertexArrayAttribBinding(bound_pipeline.vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index);
+                break;
+            case uvre::CommandType::BIND_SAMPLER:
+                glBindSampler(cmd.bind_index, cmd.object);
+                break;
+            case uvre::CommandType::BIND_TEXTURE:
+                glBindTextureUnit(cmd.bind_index, cmd.object);
+                break;
+            case uvre::CommandType::BIND_RENDER_TARGET:
+                glBindFramebuffer(GL_FRAMEBUFFER, cmd.object);
+                break;
+            case uvre::CommandType::WRITE_BUFFER:
+                glNamedBufferSubData(cmd.buffer_write.buffer, static_cast<GLintptr>(cmd.buffer_write.offset), static_cast<GLsizeiptr>(cmd.buffer_write.size), cmd.buffer_write.data_ptr);
+                break;
+            case uvre::CommandType::COPY_RENDER_TARGET:
+                glBlitNamedFramebuffer(cmd.rt_copy.src, cmd.rt_copy.dst, cmd.rt_copy.sx0, cmd.rt_copy.sy0, cmd.rt_copy.sx1, cmd.rt_copy.sy1, cmd.rt_copy.dx0, cmd.rt_copy.dy0, cmd.rt_copy.dx1, cmd.rt_copy.dy1, cmd.rt_copy.mask, cmd.rt_copy.filter);
+                break;
+            case uvre::CommandType::DRAW:
+                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw)), &cmd.draw);
+                glDrawArraysIndirect(bound_pipeline.primitive_mode, nullptr);
+                break;
+            case uvre::CommandType::IDRAW:
+                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.idraw)), &cmd.idraw);
+                glDrawElementsIndirect(bound_pipeline.primitive_mode, bound_pipeline.index_type, nullptr);
+                break;
+        }
+    }
 }
 
 void uvre::GLRenderDevice::prepare()

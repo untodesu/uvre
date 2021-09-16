@@ -22,8 +22,8 @@ public:
     virtual void clear(RenderTargetMask mask) = 0;
 
     virtual void bindPipeline(Pipeline pipeline) = 0;
-    virtual void bindUniformBuffer(Buffer buffer, uint32_t index) = 0;
     virtual void bindStorageBuffer(Buffer buffer, uint32_t index) = 0;
+    virtual void bindUniformBuffer(Buffer buffer, uint32_t index) = 0;
     virtual void bindIndexBuffer(Buffer buffer) = 0;
     virtual void bindVertexBuffer(Buffer buffer) = 0;
     virtual void bindSampler(Sampler sampler, uint32_t index) = 0;

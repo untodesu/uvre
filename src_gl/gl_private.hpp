@@ -50,7 +50,8 @@ struct Pipeline_S final {
     uint32_t primitive_mode;
     uint32_t fill_mode;
     size_t vertex_stride;
-    std::vector<VertexAttrib> attributes;
+    size_t num_attributes;
+    VertexAttrib *attributes;
 };
 
 struct Buffer_S final {
@@ -75,6 +76,67 @@ struct RenderTarget_S final {
     uint32_t fbobj;
 };
 
+enum class CommandType {
+    SET_SCISSOR,
+    SET_VIEWPORT,
+    SET_CLEAR_COLOR,
+    CLEAR,
+    BIND_PIPELINE,
+    BIND_STORAGE_BUFFER,
+    BIND_UNIFORM_BUFFER,
+    BIND_INDEX_BUFFER,
+    BIND_VERTEX_BUFFER,
+    BIND_SAMPLER,
+    BIND_TEXTURE,
+    BIND_RENDER_TARGET,
+    WRITE_BUFFER,
+    COPY_RENDER_TARGET,
+    DRAW,
+    IDRAW
+};
+
+struct Command final {
+    CommandType type;
+    uint32_t bind_index;
+    union {
+        struct {
+            int x, y;
+            int w, h;
+        } scvp;
+        float color[4];
+        uint32_t clear_mask;
+        Pipeline_S pipeline;
+        Buffer_S buffer;
+        uint32_t object;
+        struct {
+            uint32_t buffer;
+            size_t offset;
+            size_t size;
+            uint8_t *data_ptr;
+        } buffer_write;
+        struct {
+            uint32_t src, dst;
+            int sx0, sy0, sx1, sy1;
+            int dx0, dy0, dx1, dy1;
+            uint32_t mask;
+            uint32_t filter;
+        } rt_copy;
+        struct {
+            uint32_t vertices;
+            uint32_t instances;
+            uint32_t base_vertex;
+            uint32_t base_instance;
+        } draw;
+        struct {
+            uint32_t indices;
+            uint32_t instances;
+            uint32_t base_index;
+            uint32_t base_vertex;
+            uint32_t base_instance;
+        } idraw;
+    };
+};
+
 union DrawCmd final {
     struct {
         uint32_t vertices;
@@ -94,7 +156,7 @@ union DrawCmd final {
 class GLRenderDevice;
 class GLCommandList final : public ICommandList {
 public:
-    GLCommandList(GLRenderDevice *owner);
+    GLCommandList();
 
     void setScissor(int x, int y, int width, int height) override;
     void setViewport(int x, int y, int width, int height) override;
@@ -104,8 +166,8 @@ public:
     void clear(RenderTargetMask mask) override;
 
     void bindPipeline(Pipeline pipeline) override;
-    void bindUniformBuffer(Buffer buffer, uint32_t index) override;
     void bindStorageBuffer(Buffer buffer, uint32_t index) override;
+    void bindUniformBuffer(Buffer buffer, uint32_t index) override;
     void bindIndexBuffer(Buffer buffer) override;
     void bindVertexBuffer(Buffer buffer) override;
     void bindSampler(Sampler sampler, uint32_t index) override;
@@ -119,7 +181,8 @@ public:
     void idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance) override;
 
 public:
-    GLRenderDevice *owner;
+    std::vector<Command> commands;
+    size_t num_commands;
 };
 
 class GLRenderDevice final : public IRenderDevice {
@@ -154,11 +217,22 @@ public:
     uint32_t idbo;
     DeviceInfo info;
     VBOBinding *vbos;
-    Pipeline null_pipeline;
-    Pipeline bound_pipeline;
+    Pipeline_S bound_pipeline;
     std::vector<Pipeline_S *> pipelines;
     std::vector<Buffer_S *> buffers;
     std::vector<GLCommandList *> commandlists;
 };
 
+constexpr static const Pipeline_S NULL_PIPELINE = {
+    .ppobj = 0,
+    .vaobj = 0,
+    .blending = { .enabled = false },
+    .depth_testing = { .enabled = false },
+    .face_culling = { .enabled = false },
+    .index_type = GL_UNSIGNED_SHORT,
+    .primitive_mode = GL_TRIANGLES,
+    .fill_mode = GL_FILL,
+    .vertex_stride = 0,
+    .num_attributes = 0
+};
 } // namespace uvre

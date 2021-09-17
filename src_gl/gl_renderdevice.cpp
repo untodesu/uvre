@@ -9,6 +9,8 @@
 #include <functional>
 #include "gl_private.hpp"
 
+static uvre::VertexArray dummy_vao = { 0, nullptr };
+
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
 {
     const uvre::DeviceInfo *info = reinterpret_cast<const uvre::DeviceInfo *>(arg);
@@ -31,8 +33,15 @@ static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GLRenderDevice *de
         break;
     }
 
+    // Chain-free the VAO list
+    for(uvre::VertexArray *node = pipeline->vaos; node;) {
+        uvre::VertexArray *next = node->next;
+        glDeleteVertexArrays(1, &node->vaobj);
+        delete node;
+        node = next;
+    }
+
     glDeleteProgramPipelines(1, &pipeline->ppobj);
-    glDeleteVertexArrays(1, &pipeline->vaobj);
     delete pipeline;
 }
 
@@ -70,10 +79,24 @@ static void destroyRenderTarget(uvre::RenderTarget_S *target)
 }
 
 uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
-    : info(info), vbos(nullptr), bound_pipeline(NULL_PIPELINE), pipelines(), buffers(), commandlists()
+    : info(info), vbos(nullptr), bound_pipeline(), null_pipeline(), pipelines(), buffers(), commandlists()
 {
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &max_vbo_bindings);
+
     glCreateBuffers(1, &idbo);
     glNamedBufferData(idbo, static_cast<GLsizeiptr>(sizeof(uvre::DrawCmd)), nullptr, GL_DYNAMIC_DRAW);
+
+    null_pipeline.blending.enabled = false;
+    null_pipeline.depth_testing.enabled = false;
+    null_pipeline.face_culling.enabled = false;
+    null_pipeline.index_type = GL_UNSIGNED_SHORT;
+    null_pipeline.primitive_mode = GL_TRIANGLES;
+    null_pipeline.fill_mode = GL_LINES;
+    null_pipeline.vertex_stride = 0;
+    null_pipeline.num_attributes = 0;
+    null_pipeline.attributes = 0;
+    null_pipeline.vaos = nullptr;
+    bound_pipeline = null_pipeline;
 
     vbos = new uvre::VBOBinding;
     vbos->index = 0;
@@ -334,12 +357,37 @@ static inline uint32_t getFillMode(uvre::FillMode mode)
     }
 }
 
+static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_S *pipeline)
+{
+    if(vao && vao != &dummy_vao) {
+        for(size_t i = 0; i < pipeline->num_attributes; i++) {
+            uvre::VertexAttrib &attrib = pipeline->attributes[i];
+            glEnableVertexArrayAttrib(vao->vaobj, attrib.id);
+            glVertexArrayAttribFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
+        }
+    }
+}
+
+static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32_t index, const uvre::Pipeline_S *pipeline)
+{
+    for(uvre::VertexArray *node = *head; node; node = node->next) {
+        if(node == &dummy_vao || index == 0)
+            return node;
+        index--;
+    }
+
+    uvre::VertexArray *next = new uvre::VertexArray;
+    glCreateVertexArrays(1, &next->vaobj);
+    next->next = *head;
+    *head = next;
+    return next;
+}
+
 uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &info)
 {
     uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
     glCreateProgramPipelines(1, &pipeline->ppobj);
-    glCreateVertexArrays(1, &pipeline->vaobj);
 
     pipeline->blending.enabled = info.blending.enabled;
     pipeline->blending.equation = getBlendEquation(info.blending.equation);
@@ -358,11 +406,10 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     pipeline->attributes = new uvre::VertexAttrib[pipeline->num_attributes];
     std::copy(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs, pipeline->attributes);
 
-    for(size_t i = 0; i < pipeline->num_attributes; i++) {
-        uvre::VertexAttrib &attrib = pipeline->attributes[i];
-        glEnableVertexArrayAttrib(pipeline->vaobj, attrib.id);
-        glVertexArrayAttribFormat(pipeline->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
-    }
+    pipeline->vaos = new uvre::VertexArray;
+    glCreateVertexArrays(1, &pipeline->vaos->vaobj);
+    pipeline->vaos->next = nullptr;
+    setVertexFormat(pipeline->vaos, pipeline.get());
 
     for(size_t i = 0; i < info.num_shaders; i++) {
         if(info.shaders[i]) {
@@ -374,7 +421,7 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     // Notify the buffers
     for(uvre::Buffer_S *buffer : buffers) {
         // offset is zero and that is hardcoded
-        glVertexArrayVertexBuffer(pipeline->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+        glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, (buffer->vbo->index / max_vbo_bindings), pipeline.get())->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
     }
 
     // Add ourselves to the notify list.
@@ -415,7 +462,7 @@ uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
         // Notify the pipeline objects
         for(uvre::Pipeline_S *pipeline : pipelines) {
             // offset is zero and that is hardcoded
-            glVertexArrayVertexBuffer(pipeline->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+            glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, (buffer->vbo->index / max_vbo_bindings), pipeline)->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
         }
 
         // Add ourselves to the notify list
@@ -784,6 +831,7 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
     uvre::GLCommandList *glcommands = static_cast<uvre::GLCommandList *>(commands);
     for(size_t i = 0; i < glcommands->num_commands; i++) {
         const uvre::Command &cmd = glcommands->commands[i];
+        uvre::VertexArray *vaonode = nullptr;
         switch(cmd.type) {
             case uvre::CommandType::SET_SCISSOR:
                 glScissor(cmd.scvp.x, cmd.scvp.y, cmd.scvp.w, cmd.scvp.h);
@@ -818,7 +866,6 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
                 }
                 glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline.fill_mode);
                 glBindProgramPipeline(bound_pipeline.ppobj);
-                glBindVertexArray(bound_pipeline.vaobj);
                 break;
             case uvre::CommandType::BIND_STORAGE_BUFFER:
                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, cmd.bind_index, cmd.object);
@@ -827,11 +874,14 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
                 glBindBufferBase(GL_UNIFORM_BUFFER, cmd.bind_index, cmd.object);
                 break;
             case uvre::CommandType::BIND_INDEX_BUFFER:
-                glVertexArrayElementBuffer(bound_pipeline.vaobj, cmd.object);
+                for(vaonode = bound_pipeline.vaos; vaonode; vaonode = vaonode->next)
+                    glVertexArrayElementBuffer(vaonode->vaobj, cmd.object);
                 break;
             case uvre::CommandType::BIND_VERTEX_BUFFER:
+                vaonode = getVertexArray(&bound_pipeline.vaos, cmd.buffer.vbo->index / max_vbo_bindings, &bound_pipeline);
                 for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
-                    glVertexArrayAttribBinding(bound_pipeline.vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index);
+                    glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index);
+                glBindVertexArray(vaonode->vaobj);
                 break;
             case uvre::CommandType::BIND_SAMPLER:
                 glBindSampler(cmd.bind_index, cmd.object);

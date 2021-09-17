@@ -16,6 +16,11 @@
 
 namespace uvre
 {
+struct VertexArray final {
+    uint32_t vaobj;
+    VertexArray *next;
+};
+
 struct VBOBinding final {
     uint32_t index;
     bool is_free;
@@ -30,7 +35,6 @@ struct Shader_S final {
 
 struct Pipeline_S final {
     uint32_t ppobj;
-    uint32_t vaobj;
     struct {
         bool enabled;
         uint32_t equation;
@@ -52,6 +56,7 @@ struct Pipeline_S final {
     size_t vertex_stride;
     size_t num_attributes;
     VertexAttrib *attributes;
+    VertexArray *vaos;
 };
 
 struct Buffer_S final {
@@ -202,14 +207,14 @@ public:
     void mode(int width, int height) override;
 
 public:
+    int32_t max_vbo_bindings;
     uint32_t idbo;
     DeviceInfo info;
     VBOBinding *vbos;
     Pipeline_S bound_pipeline;
+    Pipeline_S null_pipeline;
     std::vector<Pipeline_S *> pipelines;
     std::vector<Buffer_S *> buffers;
     std::vector<GLCommandList *> commandlists;
 };
-
-constexpr static const Pipeline_S NULL_PIPELINE = { 0,  0, { false }, { false }, { false }, GL_UNSIGNED_SHORT, GL_TRIANGLES, GL_FILL };
 } // namespace uvre

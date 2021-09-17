@@ -386,25 +386,17 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
 static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **begin)
 {
     for(uvre::VBOBinding *binding = *begin; binding; binding = binding->next) {
-        if(binding->is_free) {
-            // Bullseye
-            return binding;
-        }
-
-        // Create a new binding
-        // TODO: check for max bindings?
-        if(!binding->next) {
-            uvre::VBOBinding *next = new uvre::VBOBinding;
-            next->index = binding->index + 1;
-            next->is_free = true;
-            next->next = *begin;
-            *begin = next;
-            return next;
-        }
+        if(!binding->is_free)
+            continue;
+        return binding;
     }
 
-    // Oh no cringe!
-    return nullptr;
+    uvre::VBOBinding *next = new uvre::VBOBinding;
+    next->index = (*begin)->index + 1;
+    next->is_free = true;
+    next->next = *begin;
+    *begin = next;
+    return next;
 }
 
 uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)

@@ -421,7 +421,7 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     // Notify the buffers
     for(uvre::Buffer_S *buffer : buffers) {
         // offset is zero and that is hardcoded
-        glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, (buffer->vbo->index / max_vbo_bindings), pipeline.get())->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+        glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline.get())->vaobj, buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
     }
 
     // Add ourselves to the notify list.
@@ -462,7 +462,7 @@ uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
         // Notify the pipeline objects
         for(uvre::Pipeline_S *pipeline : pipelines) {
             // offset is zero and that is hardcoded
-            glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, (buffer->vbo->index / max_vbo_bindings), pipeline)->vaobj, buffer->vbo->index, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+            glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline)->vaobj, buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
         }
 
         // Add ourselves to the notify list
@@ -880,7 +880,7 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
             case uvre::CommandType::BIND_VERTEX_BUFFER:
                 vaonode = getVertexArray(&bound_pipeline.vaos, cmd.buffer.vbo->index / max_vbo_bindings, &bound_pipeline);
                 for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
-                    glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index);
+                    glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index % max_vbo_bindings);
                 glBindVertexArray(vaonode->vaobj);
                 break;
             case uvre::CommandType::BIND_SAMPLER:

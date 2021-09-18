@@ -363,7 +363,16 @@ static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_
         for(size_t i = 0; i < pipeline->num_attributes; i++) {
             uvre::VertexAttrib &attrib = pipeline->attributes[i];
             glEnableVertexArrayAttrib(vao->vaobj, attrib.id);
-            glVertexArrayAttribFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
+            switch(attrib.type) {
+                case uvre::VertexAttribType::FLOAT32:
+                    glVertexArrayAttribFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
+                    break;
+                case uvre::VertexAttribType::SIGNED_INT32:
+                case uvre::VertexAttribType::UNSIGNED_INT32:
+                    // Oh, OpenGL, you did it again. You shat itself.
+                    glVertexArrayAttribIFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), static_cast<GLuint>(attrib.offset));
+                    break;
+            }
         }
     }
 }

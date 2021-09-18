@@ -9,7 +9,7 @@
 #include <functional>
 #include "gl_private.hpp"
 
-static uvre::VertexArray dummy_vao = { 0, nullptr };
+static uvre::VertexArray dummy_vao = { 0, 0, nullptr };
 
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
 {
@@ -371,12 +371,13 @@ static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_
 static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32_t index, const uvre::Pipeline_S *pipeline)
 {
     for(uvre::VertexArray *node = *head; node; node = node->next) {
-        if(node == &dummy_vao || index == 0)
+        if(node == &dummy_vao || index <= node->index)
             return node;
         index--;
     }
 
     uvre::VertexArray *next = new uvre::VertexArray;
+    next->index = (*head)->index + 1;
     glCreateVertexArrays(1, &next->vaobj);
     next->next = *head;
     *head = next;

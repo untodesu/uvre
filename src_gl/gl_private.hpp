@@ -17,6 +17,7 @@
 namespace uvre
 {
 struct VertexArray final {
+    uint32_t index;
     uint32_t vaobj;
     VertexArray *next;
 };

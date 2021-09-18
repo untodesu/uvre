@@ -431,19 +431,19 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     return pipeline;
 }
 
-static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **begin)
+static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **head)
 {
-    for(uvre::VBOBinding *binding = *begin; binding; binding = binding->next) {
-        if(!binding->is_free)
+    for(uvre::VBOBinding *node = *head; node; node = node->next) {
+        if(!node->is_free)
             continue;
-        return binding;
+        return node;
     }
 
     uvre::VBOBinding *next = new uvre::VBOBinding;
-    next->index = (*begin)->index + 1;
+    next->index = (*head)->index + 1;
     next->is_free = true;
-    next->next = *begin;
-    *begin = next;
+    next->next = *head;
+    *head = next;
     return next;
 }
 

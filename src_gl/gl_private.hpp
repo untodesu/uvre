@@ -19,6 +19,7 @@ namespace uvre
 struct VertexArray final {
     uint32_t index;
     uint32_t vaobj;
+    uint32_t vbobj; // OPTIMIZE
     VertexArray *next;
 };
 
@@ -35,6 +36,8 @@ struct Shader_S final {
 };
 
 struct Pipeline_S final {
+    uint32_t bound_ibo; // OPTIMIZE
+    uint32_t bound_vao; // OPTIMIZE
     uint32_t ppobj;
     struct {
         bool enabled;

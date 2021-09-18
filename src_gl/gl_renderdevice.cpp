@@ -9,7 +9,7 @@
 #include <functional>
 #include "gl_private.hpp"
 
-static uvre::VertexArray dummy_vao = { 0, 0, nullptr };
+static uvre::VertexArray dummy_vao = { 0, 0, 0, nullptr };
 
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
 {
@@ -388,6 +388,7 @@ static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32
     uvre::VertexArray *next = new uvre::VertexArray;
     next->index = (*head)->index + 1;
     glCreateVertexArrays(1, &next->vaobj);
+    next->vbobj = 0;
     setVertexFormat(next, pipeline);
     next->next = *head;
     *head = next;
@@ -400,6 +401,8 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
 
     glCreateProgramPipelines(1, &pipeline->ppobj);
 
+    pipeline->bound_ibo = 0;
+    pipeline->bound_vao = 0;
     pipeline->blending.enabled = info.blending.enabled;
     pipeline->blending.equation = getBlendEquation(info.blending.equation);
     pipeline->blending.sfactor = getBlendFunc(info.blending.sfactor);
@@ -878,15 +881,21 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
             case uvre::CommandType::BIND_UNIFORM_BUFFER:
                 glBindBufferBase(GL_UNIFORM_BUFFER, cmd.bind_index, cmd.object);
                 break;
-            case uvre::CommandType::BIND_INDEX_BUFFER:
-                for(vaonode = bound_pipeline.vaos; vaonode; vaonode = vaonode->next)
-                    glVertexArrayElementBuffer(vaonode->vaobj, cmd.object);
+            case uvre::CommandType::BIND_INDEX_BUFFER: // OPTIMIZE
+                bound_pipeline.bound_ibo = cmd.object;
                 break;
-            case uvre::CommandType::BIND_VERTEX_BUFFER:
+            case uvre::CommandType::BIND_VERTEX_BUFFER: // OPTIMIZE
                 vaonode = getVertexArray(&bound_pipeline.vaos, cmd.buffer.vbo->index / max_vbo_bindings, &bound_pipeline);
-                for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
-                    glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index % max_vbo_bindings);
-                glBindVertexArray(vaonode->vaobj);
+                if(vaonode->vaobj != bound_pipeline.bound_vao) {
+                    bound_pipeline.bound_vao = vaonode->vaobj;
+                    glBindVertexArray(vaonode->vaobj);
+                }
+                if(vaonode->vbobj != cmd.buffer.bufobj) {
+                    vaonode->vbobj = cmd.buffer.bufobj;
+                    for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
+                        glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index % max_vbo_bindings);
+                    glVertexArrayElementBuffer(vaonode->vaobj, bound_pipeline.bound_ibo);
+                }
                 break;
             case uvre::CommandType::BIND_SAMPLER:
                 glBindSampler(cmd.bind_index, cmd.object);

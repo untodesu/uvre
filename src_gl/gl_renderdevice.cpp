@@ -371,14 +371,15 @@ static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_
 static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32_t index, const uvre::Pipeline_S *pipeline)
 {
     for(uvre::VertexArray *node = *head; node; node = node->next) {
-        if(node == &dummy_vao || index <= node->index)
-            return node;
-        index--;
+        if(index != node->index)
+            continue;
+        return node;
     }
 
     uvre::VertexArray *next = new uvre::VertexArray;
     next->index = (*head)->index + 1;
     glCreateVertexArrays(1, &next->vaobj);
+    setVertexFormat(next, pipeline);
     next->next = *head;
     *head = next;
     return next;
@@ -408,6 +409,7 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     std::copy(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs, pipeline->attributes);
 
     pipeline->vaos = new uvre::VertexArray;
+    pipeline->vaos->index = 0;
     glCreateVertexArrays(1, &pipeline->vaos->vaobj);
     pipeline->vaos->next = nullptr;
     setVertexFormat(pipeline->vaos, pipeline.get());
@@ -470,15 +472,8 @@ uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
         buffers.push_back(buffer.get());
     }
 
-    if(buffer->size) 
-        glNamedBufferData(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), info.data, GL_DYNAMIC_DRAW);
+    glNamedBufferStorage(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), info.data, GL_DYNAMIC_STORAGE_BIT);
     return buffer;
-}
-
-void uvre::GLRenderDevice::resizeBuffer(uvre::Buffer buffer, size_t size, const void *data)
-{
-    buffer->size = size;
-    glNamedBufferData(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), data, GL_DYNAMIC_DRAW);
 }
 
 void uvre::GLRenderDevice::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)

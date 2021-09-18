@@ -191,7 +191,6 @@ public:
     Texture createTexture(const TextureInfo &info) override;
     RenderTarget createRenderTarget(const RenderTargetInfo &info) override;
     
-    void resizeBuffer(Buffer buffer, size_t size, const void *data) override;
     void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) override;
     void writeTexture2D(Texture texture, int x, int y, int w, int h, PixelFormat format, const void *data) override;
     void writeTextureCube(Texture texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data) override;

@@ -126,10 +126,12 @@ void uvre::GLCommandList::bindIndexBuffer(uvre::Buffer buffer)
 
 void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer buffer)
 {
-    uvre::Command cmd = {};
-    cmd.type = uvre::CommandType::BIND_VERTEX_BUFFER;
-    cmd.buffer = *buffer;
-    pushCommand(commands, cmd, num_commands++);
+    if(buffer) {
+        uvre::Command cmd = {};
+        cmd.type = uvre::CommandType::BIND_VERTEX_BUFFER;
+        cmd.buffer = *buffer;
+        pushCommand(commands, cmd, num_commands++);
+    }
 }
 
 void uvre::GLCommandList::bindSampler(uvre::Sampler sampler, uint32_t index)

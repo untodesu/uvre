@@ -136,7 +136,7 @@ enum class FillMode {
     WIREFRAME
 };
 
-enum class BackendFamily {
+enum class ImplApiFamily {
     OPENGL
 };
 

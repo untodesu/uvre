@@ -22,7 +22,6 @@ static const char *vert_source = R"(
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 texcoord;
 layout(location = 0) out vec2 fs_texcoord;
-out gl_PerVertex { vec4 gl_Position; };
 void main()
 {
     fs_texcoord = texcoord;
@@ -55,8 +54,8 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::BackendInfo backend_info;
-    uvre::pollBackendInfo(backend_info);
+    uvre::ImplApiInfo impl_info;
+    uvre::pollImplApiInfo(impl_info);
 
     // Do not require any client API by default
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -64,20 +63,20 @@ int main()
     // Non-resizable.
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    // If the backend API is OpenGL-ish
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    // If the implementation is OpenGL-ish
+    if(impl_info.family == uvre::ImplApiFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, backend_info.gl.version_minor);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, impl_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, impl_info.gl.version_major);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, impl_info.gl.version_minor);
 
 #if defined(__APPLE__)
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
     }
 
-    constexpr const int WINDOW_WIDTH = 1280;
-    constexpr const int WINDOW_HEIGHT = 960;
+    constexpr const int WINDOW_WIDTH = 640;
+    constexpr const int WINDOW_HEIGHT = 480;
 
     // Open a new window
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "UVRE - Triangle", nullptr, nullptr);
@@ -90,7 +89,7 @@ int main()
     uvre::DeviceInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    if(impl_info.family == uvre::ImplApiFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
@@ -112,7 +111,7 @@ int main()
     // After the rendering device is created and initialized,
     // we need to create a command list object. A command list
     // is an object which whole purpose is to record drawing
-    // commands and then submit them to the backend API.
+    // commands and then submit them to the implementation.
     uvre::ICommandList *commands = device->createCommandList();
 
     // Now let's talk about how UVRE manages object creation.
@@ -215,7 +214,7 @@ int main()
         uvre::RenderTarget target = device->createRenderTarget(target_info);
 
         // Now the main loop. It should look pretty much the same
-        // for all the backend APIs. UVRE is not an exception.
+        // for all the implementations. UVRE is not an exception.
         while(!glfwWindowShouldClose(window)) {
             // Prepare the state to a new frame
             device->prepare();

@@ -6,7 +6,7 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#include "gl_private.hpp"
+#include "gl46_private.hpp"
 
 static inline void pushCommand(std::vector<uvre::Command> &commands, const uvre::Command &cmd, size_t index)
 {
@@ -33,12 +33,12 @@ static inline uint32_t getTargetMask(uvre::RenderTargetMask mask)
     return result;
 }
 
-uvre::GLCommandList::GLCommandList()
+uvre::GL46_CommandList::GL46_CommandList()
     : commands(), num_commands(0)
 {
 }
 
-void uvre::GLCommandList::setScissor(int x, int y, int width, int height)
+void uvre::GL46_CommandList::setScissor(int x, int y, int width, int height)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::SET_SCISSOR;
@@ -49,7 +49,7 @@ void uvre::GLCommandList::setScissor(int x, int y, int width, int height)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::setViewport(int x, int y, int width, int height)
+void uvre::GL46_CommandList::setViewport(int x, int y, int width, int height)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::SET_VIEWPORT;
@@ -60,7 +60,7 @@ void uvre::GLCommandList::setViewport(int x, int y, int width, int height)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::setClearColor3f(float r, float g, float b)
+void uvre::GL46_CommandList::setClearColor3f(float r, float g, float b)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::SET_CLEAR_COLOR;
@@ -71,7 +71,7 @@ void uvre::GLCommandList::setClearColor3f(float r, float g, float b)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::setClearColor4f(float r, float g, float b, float a)
+void uvre::GL46_CommandList::setClearColor4f(float r, float g, float b, float a)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::SET_CLEAR_COLOR;
@@ -82,7 +82,7 @@ void uvre::GLCommandList::setClearColor4f(float r, float g, float b, float a)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::clear(uvre::RenderTargetMask mask)
+void uvre::GL46_CommandList::clear(uvre::RenderTargetMask mask)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::CLEAR;
@@ -90,7 +90,7 @@ void uvre::GLCommandList::clear(uvre::RenderTargetMask mask)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindPipeline(uvre::Pipeline pipeline)
+void uvre::GL46_CommandList::bindPipeline(uvre::Pipeline pipeline)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_PIPELINE;
@@ -98,7 +98,7 @@ void uvre::GLCommandList::bindPipeline(uvre::Pipeline pipeline)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindStorageBuffer(uvre::Buffer buffer, uint32_t index)
+void uvre::GL46_CommandList::bindStorageBuffer(uvre::Buffer buffer, uint32_t index)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_STORAGE_BUFFER;
@@ -107,7 +107,7 @@ void uvre::GLCommandList::bindStorageBuffer(uvre::Buffer buffer, uint32_t index)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindUniformBuffer(uvre::Buffer buffer, uint32_t index)
+void uvre::GL46_CommandList::bindUniformBuffer(uvre::Buffer buffer, uint32_t index)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_UNIFORM_BUFFER;
@@ -116,7 +116,7 @@ void uvre::GLCommandList::bindUniformBuffer(uvre::Buffer buffer, uint32_t index)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindIndexBuffer(uvre::Buffer buffer)
+void uvre::GL46_CommandList::bindIndexBuffer(uvre::Buffer buffer)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_INDEX_BUFFER;
@@ -124,7 +124,7 @@ void uvre::GLCommandList::bindIndexBuffer(uvre::Buffer buffer)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer buffer)
+void uvre::GL46_CommandList::bindVertexBuffer(uvre::Buffer buffer)
 {
     if(buffer) {
         uvre::Command cmd = {};
@@ -134,7 +134,7 @@ void uvre::GLCommandList::bindVertexBuffer(uvre::Buffer buffer)
     }
 }
 
-void uvre::GLCommandList::bindSampler(uvre::Sampler sampler, uint32_t index)
+void uvre::GL46_CommandList::bindSampler(uvre::Sampler sampler, uint32_t index)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_SAMPLER;
@@ -143,7 +143,7 @@ void uvre::GLCommandList::bindSampler(uvre::Sampler sampler, uint32_t index)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindTexture(uvre::Texture texture, uint32_t index)
+void uvre::GL46_CommandList::bindTexture(uvre::Texture texture, uint32_t index)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_TEXTURE;
@@ -152,7 +152,7 @@ void uvre::GLCommandList::bindTexture(uvre::Texture texture, uint32_t index)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::bindRenderTarget(uvre::RenderTarget target)
+void uvre::GL46_CommandList::bindRenderTarget(uvre::RenderTarget target)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::BIND_RENDER_TARGET;
@@ -160,7 +160,7 @@ void uvre::GLCommandList::bindRenderTarget(uvre::RenderTarget target)
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
+void uvre::GL46_CommandList::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::WRITE_BUFFER;
@@ -172,7 +172,7 @@ void uvre::GLCommandList::writeBuffer(uvre::Buffer buffer, size_t offset, size_t
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::copyRenderTarget(uvre::RenderTarget src, uvre::RenderTarget dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::RenderTargetMask mask, bool filter)
+void uvre::GL46_CommandList::copyRenderTarget(uvre::RenderTarget src, uvre::RenderTarget dst, int sx0, int sy0, int sx1, int sy1, int dx0, int dy0, int dx1, int dy1, uvre::RenderTargetMask mask, bool filter)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::COPY_RENDER_TARGET;
@@ -191,25 +191,25 @@ void uvre::GLCommandList::copyRenderTarget(uvre::RenderTarget src, uvre::RenderT
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance)
+void uvre::GL46_CommandList::draw(size_t vertices, size_t instances, size_t base_vertex, size_t base_instance)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::DRAW;
-    cmd.draw.a.vertices = static_cast<uint32_t>(vertices);
-    cmd.draw.a.instances = static_cast<uint32_t>(instances);
-    cmd.draw.a.base_vertex = static_cast<uint32_t>(base_vertex);
-    cmd.draw.a.base_instance = static_cast<uint32_t>(base_instance);
+    cmd.draw.a.vertices = static_cast<int32_t>(vertices);
+    cmd.draw.a.instances = static_cast<int32_t>(instances);
+    cmd.draw.a.base_vertex = static_cast<int32_t>(base_vertex);
+    cmd.draw.a.base_instance = static_cast<int32_t>(base_instance);
     pushCommand(commands, cmd, num_commands++);
 }
 
-void uvre::GLCommandList::idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance)
+void uvre::GL46_CommandList::idraw(size_t indices, size_t instances, size_t base_index, size_t base_vertex, size_t base_instance)
 {
     uvre::Command cmd = {};
     cmd.type = uvre::CommandType::IDRAW;
-    cmd.draw.e.indices = static_cast<uint32_t>(indices);
-    cmd.draw.e.instances = static_cast<uint32_t>(instances);
-    cmd.draw.e.base_index = static_cast<uint32_t>(base_index);
-    cmd.draw.e.base_vertex = static_cast<uint32_t>(base_vertex);
-    cmd.draw.e.base_instance = static_cast<uint32_t>(base_instance);
+    cmd.draw.e.indices = static_cast<int32_t>(indices);
+    cmd.draw.e.instances = static_cast<int32_t>(instances);
+    cmd.draw.e.base_index = static_cast<int32_t>(base_index);
+    cmd.draw.e.base_vertex = static_cast<int32_t>(base_vertex);
+    cmd.draw.e.base_instance = static_cast<int32_t>(base_instance);
     pushCommand(commands, cmd, num_commands++);
 }

@@ -54,6 +54,7 @@ struct Pipeline_S final {
         uint32_t front_face;
         uint32_t cull_face;
     } face_culling;
+    size_t index_size;
     uint32_t index_type;
     uint32_t primitive_mode;
     uint32_t fill_mode;
@@ -106,17 +107,17 @@ enum class CommandType {
 
 union DrawCmd final {
     struct {
-        uint32_t vertices;
-        uint32_t instances;
-        uint32_t base_vertex;
-        uint32_t base_instance;
+        int32_t vertices;
+        int32_t instances;
+        int32_t base_vertex;
+        int32_t base_instance;
     } a;
     struct {
-        uint32_t indices;
-        uint32_t instances;
-        uint32_t base_index;
-        uint32_t base_vertex;
-        uint32_t base_instance;
+        int32_t indices;
+        int32_t instances;
+        int32_t base_index;
+        int32_t base_vertex;
+        int32_t base_instance;
     } e;
 };
 
@@ -150,10 +151,10 @@ struct Command final {
     };
 };
 
-class GLRenderDevice;
-class GLCommandList final : public ICommandList {
+class GL46_RenderDevice;
+class GL46_CommandList final : public ICommandList {
 public:
-    GLCommandList();
+    GL46_CommandList();
 
     void setScissor(int x, int y, int width, int height) override;
     void setViewport(int x, int y, int width, int height) override;
@@ -182,10 +183,10 @@ public:
     size_t num_commands;
 };
 
-class GLRenderDevice final : public IRenderDevice {
+class GL46_RenderDevice final : public IRenderDevice {
 public:
-    GLRenderDevice(const DeviceInfo &info);
-    virtual ~GLRenderDevice();
+    GL46_RenderDevice(const DeviceInfo &info);
+    virtual ~GL46_RenderDevice();
 
     Shader createShader(const ShaderInfo &info) override;
     Pipeline createPipeline(const PipelineInfo &info) override;
@@ -211,13 +212,12 @@ public:
 
 public:
     int32_t max_vbo_bindings;
-    uint32_t idbo;
     DeviceInfo info;
     VBOBinding *vbos;
     Pipeline_S bound_pipeline;
     Pipeline_S null_pipeline;
     std::vector<Pipeline_S *> pipelines;
     std::vector<Buffer_S *> buffers;
-    std::vector<GLCommandList *> commandlists;
+    std::vector<GL46_CommandList *> commandlists;
 };
 } // namespace uvre

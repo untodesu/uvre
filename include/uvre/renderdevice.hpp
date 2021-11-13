@@ -86,8 +86,8 @@ struct RenderTargetInfo final {
     const ColorAttachment *color_attachments;
 };
 
-struct BackendInfo final {
-    BackendFamily family;
+struct ImplApiInfo final {
+    ImplApiFamily family;
     struct {
         bool core_profile;
         int version_major;
@@ -134,7 +134,7 @@ public:
     virtual void mode(int width, int height) = 0;
 };
 
-UVRE_API void pollBackendInfo(BackendInfo &info);
+UVRE_API void pollImplApiInfo(ImplApiInfo &info);
 UVRE_API IRenderDevice *createDevice(const DeviceInfo &info);
 UVRE_API void destroyDevice(IRenderDevice *device);
 } // namespace uvre

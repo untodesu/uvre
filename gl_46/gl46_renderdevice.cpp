@@ -7,7 +7,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #include <functional>
-#include "gl_private.hpp"
+#include "gl46_private.hpp"
 
 static uvre::VertexArray dummy_vao = { 0, 0, 0, nullptr };
 
@@ -23,7 +23,7 @@ static void destroyShader(uvre::Shader_S *shader)
     delete shader;
 }
 
-static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GLRenderDevice *device)
+static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GL46_RenderDevice *device)
 {
     // Remove ourselves from the notify list.
     for(std::vector<uvre::Pipeline_S *>::const_iterator it = device->pipelines.cbegin(); it != device->pipelines.cend(); it++) {
@@ -45,7 +45,7 @@ static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GLRenderDevice *de
     delete pipeline;
 }
 
-static void destroyBuffer(uvre::Buffer_S *buffer, uvre::GLRenderDevice *device)
+static void destroyBuffer(uvre::Buffer_S *buffer, uvre::GL46_RenderDevice *device)
 {
     // Remove ourselves from the notify list.
     for(std::vector<uvre::Buffer_S *>::const_iterator it = device->buffers.cbegin(); it != device->buffers.cend(); it++) {
@@ -78,13 +78,10 @@ static void destroyRenderTarget(uvre::RenderTarget_S *target)
     delete target;
 }
 
-uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
+uvre::GL46_RenderDevice::GL46_RenderDevice(const uvre::DeviceInfo &info)
     : info(info), vbos(nullptr), bound_pipeline(), null_pipeline(), pipelines(), buffers(), commandlists()
 {
     glGetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &max_vbo_bindings);
-
-    glCreateBuffers(1, &idbo);
-    glNamedBufferData(idbo, static_cast<GLsizeiptr>(sizeof(uvre::DrawCmd)), nullptr, GL_DYNAMIC_DRAW);
 
     null_pipeline.blending.enabled = false;
     null_pipeline.depth_testing.enabled = false;
@@ -110,9 +107,9 @@ uvre::GLRenderDevice::GLRenderDevice(const uvre::DeviceInfo &info)
     }
 }
 
-uvre::GLRenderDevice::~GLRenderDevice()
+uvre::GL46_RenderDevice::~GL46_RenderDevice()
 {
-    for(uvre::GLCommandList *commandlist : commandlists)
+    for(uvre::GL46_CommandList *commandlist : commandlists)
         delete commandlist;
 
     pipelines.clear();
@@ -122,15 +119,13 @@ uvre::GLRenderDevice::~GLRenderDevice()
     // Make sure that the GL context doesn't use it anymore
     glDisable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(nullptr, nullptr);
-
-    glDeleteBuffers(1, &idbo);
 }
 
-uvre::Shader uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
+uvre::Shader uvre::GL46_RenderDevice::createShader(const uvre::ShaderInfo &info)
 {
     std::stringstream ss;
-    ss << "#version 460 core\n";
-    ss << "#define _UVRE_ 1\n";
+    ss << "#version 460 core" << std::endl;
+    ss << "#define _UVRE_ 1" << std::endl;
 
     uint32_t stage = 0;
     uint32_t stage_bit = 0;
@@ -138,12 +133,12 @@ uvre::Shader uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
         case uvre::ShaderStage::VERTEX:
             stage = GL_VERTEX_SHADER;
             stage_bit = GL_VERTEX_SHADER_BIT;
-            ss << "#define _VERTEX_SHADER_ 1\n";
+            ss << "#define _VERTEX_SHADER_ 1" << std::endl;
             break;
         case uvre::ShaderStage::FRAGMENT:
             stage = GL_FRAGMENT_SHADER;
             stage_bit = GL_FRAGMENT_SHADER_BIT;
-            ss << "#define _FRAGMENT_SHADER_ 1\n";
+            ss << "#define _FRAGMENT_SHADER_ 1" << std::endl;
             break;
     }
 
@@ -159,7 +154,17 @@ uvre::Shader uvre::GLRenderDevice::createShader(const uvre::ShaderInfo &info)
             glSpecializeShader(shobj, "main", 0, nullptr, nullptr);
             break;
         case uvre::ShaderFormat::SOURCE_GLSL:
-            ss << "#define _GLSL_ 1\n";
+            ss << "#define _GLSL_ 1" << std::endl;
+            if(info.stage == uvre::ShaderStage::VERTEX) {
+                // For some unknown reason Khronos decided that
+                // gl_PerVertex needs to be defined manually for
+                // separate programs. I really don't know. Too bad!
+                ss << "out gl_PerVertex {"          << std::endl;
+                ss << " vec4 gl_Position;"          << std::endl;
+                ss << " float gl_PointSize;"        << std::endl;
+                ss << " float gl_ClipDistance[];"   << std::endl;
+                ss << "};"                          << std::endl;
+            }
             source = ss.str() + reinterpret_cast<const char *>(info.code);
             source_cstr = source.c_str();
             glShaderSource(shobj, 1, &source_cstr, nullptr);
@@ -298,6 +303,18 @@ static uint32_t getAttribType(uvre::VertexAttribType type)
     }
 }
 
+static inline size_t getIndexSize(uvre::IndexType type)
+{
+    switch(type) {
+        case uvre::IndexType::INDEX16:
+            return sizeof(uvre::Index16);
+        case uvre::IndexType::INDEX32:
+            return sizeof(uvre::Index32);
+        default:
+            return 0;
+    }
+}
+
 static inline uint32_t getIndexType(uvre::IndexType type)
 {
     switch(type) {
@@ -395,7 +412,7 @@ static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32
     return next;
 }
 
-uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &info)
+uvre::Pipeline uvre::GL46_RenderDevice::createPipeline(const uvre::PipelineInfo &info)
 {
     uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
@@ -412,6 +429,7 @@ uvre::Pipeline uvre::GLRenderDevice::createPipeline(const uvre::PipelineInfo &in
     pipeline->face_culling.enabled = info.face_culling.enabled;
     pipeline->face_culling.front_face = (info.face_culling.flags & uvre::CULL_CLOCKWISE) ? GL_CW : GL_CCW;
     pipeline->face_culling.cull_face = getCullFace(info.face_culling.flags & uvre::CULL_BACK, info.face_culling.flags & uvre::CULL_FRONT);
+    pipeline->index_size = getIndexSize(info.index_type);
     pipeline->index_type = getIndexType(info.index_type);
     pipeline->primitive_mode = getPrimitiveType(info.primitive_mode);
     pipeline->fill_mode = getFillMode(info.fill_mode);
@@ -461,7 +479,7 @@ static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **head)
     return next;
 }
 
-uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
+uvre::Buffer uvre::GL46_RenderDevice::createBuffer(const uvre::BufferInfo &info)
 {
     uvre::Buffer buffer(new uvre::Buffer_S, std::bind(destroyBuffer, std::placeholders::_1, this));
 
@@ -488,14 +506,14 @@ uvre::Buffer uvre::GLRenderDevice::createBuffer(const uvre::BufferInfo &info)
     return buffer;
 }
 
-void uvre::GLRenderDevice::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
+void uvre::GL46_RenderDevice::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
 {
     if(offset + size > buffer->size)
         return;
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 }
 
-uvre::Sampler uvre::GLRenderDevice::createSampler(const uvre::SamplerInfo &info)
+uvre::Sampler uvre::GL46_RenderDevice::createSampler(const uvre::SamplerInfo &info)
 {
     uint32_t ssobj;
     glCreateSamplers(1, &ssobj);
@@ -619,23 +637,24 @@ static inline uint32_t getInternalFormat(uvre::PixelFormat format)
     }
 }
 
-uvre::Texture uvre::GLRenderDevice::createTexture(const uvre::TextureInfo &info)
+uvre::Texture uvre::GL46_RenderDevice::createTexture(const uvre::TextureInfo &info)
 {
     uint32_t texobj;
     uint32_t format = getInternalFormat(info.format);
+    int32_t mip_levels = std::max<int32_t>(1, static_cast<int32_t>(info.mip_levels));
 
     switch(info.type) {
         case uvre::TextureType::TEXTURE_2D:
             glCreateTextures(GL_TEXTURE_2D, 1, &texobj);
-            glTextureStorage2D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height);
+            glTextureStorage2D(texobj, mip_levels, format, info.width, info.height);
             break;
         case uvre::TextureType::TEXTURE_CUBE:
             glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texobj);
-            glTextureStorage2D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height);
+            glTextureStorage2D(texobj, mip_levels, format, info.width, info.height);
             break;
         case uvre::TextureType::TEXTURE_ARRAY:
             glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texobj);
-            glTextureStorage3D(texobj, std::max<uint32_t>(1, info.mip_levels), format, info.width, info.height, info.depth);
+            glTextureStorage3D(texobj, mip_levels, format, info.width, info.height, info.depth);
             break;
         default:
             return nullptr;
@@ -764,7 +783,7 @@ static bool getExternalFormat(uvre::PixelFormat format, uint32_t &fmt, uint32_t 
     return true;
 }
 
-void uvre::GLRenderDevice::writeTexture2D(uvre::Texture texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::GL46_RenderDevice::writeTexture2D(uvre::Texture texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
@@ -772,7 +791,7 @@ void uvre::GLRenderDevice::writeTexture2D(uvre::Texture texture, int x, int y, i
     glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, data);
 }
 
-void uvre::GLRenderDevice::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::GL46_RenderDevice::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
@@ -780,7 +799,7 @@ void uvre::GLRenderDevice::writeTextureCube(uvre::Texture texture, int face, int
     glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, data);
 }
 
-void uvre::GLRenderDevice::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
+void uvre::GL46_RenderDevice::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type)) 
@@ -788,7 +807,7 @@ void uvre::GLRenderDevice::writeTextureArray(uvre::Texture texture, int x, int y
     glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
 }
 
-uvre::RenderTarget uvre::GLRenderDevice::createRenderTarget(const uvre::RenderTargetInfo &info)
+uvre::RenderTarget uvre::GL46_RenderDevice::createRenderTarget(const uvre::RenderTargetInfo &info)
 {
     uint32_t fbobj;
     glCreateFramebuffers(1, &fbobj);
@@ -810,16 +829,16 @@ uvre::RenderTarget uvre::GLRenderDevice::createRenderTarget(const uvre::RenderTa
     return target;
 }
 
-uvre::ICommandList *uvre::GLRenderDevice::createCommandList()
+uvre::ICommandList *uvre::GL46_RenderDevice::createCommandList()
 {
-    uvre::GLCommandList *commands = new uvre::GLCommandList();
+    uvre::GL46_CommandList *commands = new uvre::GL46_CommandList();
     commandlists.push_back(commands);
     return commands;
 }
 
-void uvre::GLRenderDevice::destroyCommandList(uvre::ICommandList *commands)
+void uvre::GL46_RenderDevice::destroyCommandList(uvre::ICommandList *commands)
 {
-    for(std::vector<uvre::GLCommandList *>::const_iterator it = commandlists.cbegin(); it != commandlists.cend(); it++) {
+    for(std::vector<uvre::GL46_CommandList *>::const_iterator it = commandlists.cbegin(); it != commandlists.cend(); it++) {
         if(*it == commands) {
             commandlists.erase(it);
             delete commands;
@@ -828,15 +847,15 @@ void uvre::GLRenderDevice::destroyCommandList(uvre::ICommandList *commands)
     }
 }
 
-void uvre::GLRenderDevice::startRecording(uvre::ICommandList *commands)
+void uvre::GL46_RenderDevice::startRecording(uvre::ICommandList *commands)
 {
-    uvre::GLCommandList *glcommands = static_cast<uvre::GLCommandList *>(commands);
+    uvre::GL46_CommandList *glcommands = static_cast<uvre::GL46_CommandList *>(commands);
     glcommands->num_commands = 0;
 }
 
-void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
+void uvre::GL46_RenderDevice::submit(uvre::ICommandList *commands)
 {
-    uvre::GLCommandList *glcommands = static_cast<uvre::GLCommandList *>(commands);
+    uvre::GL46_CommandList *glcommands = static_cast<uvre::GL46_CommandList *>(commands);
     for(size_t i = 0; i < glcommands->num_commands; i++) {
         const uvre::Command &cmd = glcommands->commands[i];
         uvre::VertexArray *vaonode = nullptr;
@@ -913,36 +932,33 @@ void uvre::GLRenderDevice::submit(uvre::ICommandList *commands)
                 glBlitNamedFramebuffer(cmd.rt_copy.src, cmd.rt_copy.dst, cmd.rt_copy.sx0, cmd.rt_copy.sy0, cmd.rt_copy.sx1, cmd.rt_copy.sy1, cmd.rt_copy.dx0, cmd.rt_copy.dy0, cmd.rt_copy.dx1, cmd.rt_copy.dy1, cmd.rt_copy.mask, cmd.rt_copy.filter);
                 break;
             case uvre::CommandType::DRAW:
-                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw.a)), &cmd.draw.a);
-                glDrawArraysIndirect(bound_pipeline.primitive_mode, nullptr);
+                glDrawArraysInstancedBaseInstance(bound_pipeline.primitive_mode, cmd.draw.a.base_vertex, cmd.draw.a.vertices, cmd.draw.a.instances, cmd.draw.a.base_instance);
                 break;
             case uvre::CommandType::IDRAW:
-                glNamedBufferSubData(idbo, 0, static_cast<GLsizeiptr>(sizeof(cmd.draw.e)), &cmd.draw.e);
-                glDrawElementsIndirect(bound_pipeline.primitive_mode, bound_pipeline.index_type, nullptr);
+                glDrawElementsInstancedBaseVertexBaseInstance(bound_pipeline.primitive_mode, cmd.draw.e.indices, bound_pipeline.index_type, reinterpret_cast<const void *>(static_cast<uintptr_t>(bound_pipeline.index_size * cmd.draw.e.base_index)), cmd.draw.e.instances, cmd.draw.e.base_vertex, cmd.draw.e.base_instance);
                 break;
         }
     }
 }
 
-void uvre::GLRenderDevice::prepare()
+void uvre::GL46_RenderDevice::prepare()
 {
     // Third-party overlay applications
     // can cause mayhem if this is not called.
     glUseProgram(0);
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, idbo);
 }
 
-void uvre::GLRenderDevice::present()
+void uvre::GL46_RenderDevice::present()
 {
     info.gl.swapBuffers(info.gl.user_data);
 }
 
-void uvre::GLRenderDevice::vsync(bool enable)
+void uvre::GL46_RenderDevice::vsync(bool enable)
 {
     info.gl.setSwapInterval(info.gl.user_data, enable ? 1 : 0);
 }
 
-void uvre::GLRenderDevice::mode(int, int)
+void uvre::GL46_RenderDevice::mode(int, int)
 {
     // Nothing in OpenGL
 }

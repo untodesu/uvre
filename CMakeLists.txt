@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(uvre LANGUAGES C CXX VERSION 0.1.0)
 
-set(UVRE_BACKEND "OpenGL" CACHE STRING "UVRE backend API")
+set(UVRE_IMPL "GL_46" CACHE STRING "UVRE implementation API")
 set(UVRE_BUILD_STATIC ON CACHE BOOL "Build static library")
 set(UVRE_BUILD_EXAMPLES ON CACHE BOOL "Build examples")
 
@@ -19,15 +19,10 @@ endif()
 # Include directories
 target_include_directories(uvre PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
-# Backend implementations
-message("-- UVRE_BACKEND is ${UVRE_BACKEND}")
-string(TOLOWER "${UVRE_BACKEND}" UVRE_BACKEND_LWR)
-if("${UVRE_BACKEND_LWR}" STREQUAL "opengl")
-    set(UVRE_BACKEND_SHORTNAME "gl")
-else()
-    message(FATAL_ERROR "!! Invalid UVRE_BACKEND value")
-endif()
-add_subdirectory("src_${UVRE_BACKEND_SHORTNAME}")
+# API implementations
+message("-- UVRE_IMPL is ${UVRE_IMPL}")
+string(TOLOWER "${UVRE_IMPL}" UVRE_IMPL_LWR)
+add_subdirectory("${UVRE_IMPL_LWR}")
 
 if(UVRE_BUILD_EXAMPLES)
     message("-- Building UVRE examples")

@@ -25,6 +25,12 @@ static void onGlfwFramebufferSize(GLFWwindow *window, int width, int height)
     device->mode(width, height);
 }
 
+// Debug callback
+static void onDebugMessage(const uvre::DebugMessageInfo &msg)
+{
+    std::cout << msg.text << std::endl;
+}
+
 int main()
 {
     // Initialize GLFW
@@ -82,7 +88,7 @@ int main()
     }
 
     // Message callback
-    device_info.onMessage = [](const char *message) { std::cerr << message << std::endl; };
+    device_info.onDebugMessage = &onDebugMessage;
 
     // Now we create the rendering device.
     // Rendering device is an object that works

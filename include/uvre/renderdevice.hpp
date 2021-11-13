@@ -95,6 +95,11 @@ struct ImplApiInfo final {
     } gl;
 };
 
+struct DebugMessageInfo final {
+    DebugMessageLevel level;
+    const char *text;
+};
+
 struct DeviceInfo final {
     struct {
         void *user_data;
@@ -103,7 +108,7 @@ struct DeviceInfo final {
         void(*setSwapInterval)(void *user_data, int interval);
         void(*swapBuffers)(void *user_data);
     } gl;
-    void(*onMessage)(const char *message);
+    void(*onDebugMessage)(const DebugMessageInfo &msg);
 };
 
 class IRenderDevice {

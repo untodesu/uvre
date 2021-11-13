@@ -136,6 +136,14 @@ enum class FillMode {
     WIREFRAME
 };
 
+enum class DebugMessageLevel {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR
+};
+
 enum class ImplApiFamily {
     OPENGL
 };

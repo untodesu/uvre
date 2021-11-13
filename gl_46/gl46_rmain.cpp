@@ -23,7 +23,7 @@ UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::DeviceInfo &info)
 
     info.gl.makeContextCurrent(info.gl.user_data);
     if(gladLoadGLUserPtr(reinterpret_cast<GLADuserptrloadfunc>(info.gl.getProcAddr), info.gl.user_data))
-        return new uvre::GL46_RenderDevice(info);
+        return new uvre::RenderDeviceImpl(info);
 
     // We are doomed!!!
     return nullptr;

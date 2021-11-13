@@ -9,12 +9,29 @@
 #include <functional>
 #include "gl46_private.hpp"
 
-static uvre::VertexArray dummy_vao = { 0, 0, 0, nullptr };
+static uvre::VertexArray_S dummy_vao = { 0, 0, 0, nullptr };
 
-static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *message, const void *arg)
+static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum severity, GLsizei, const char *message, const void *arg)
 {
-    const uvre::DeviceInfo *info = reinterpret_cast<const uvre::DeviceInfo *>(arg);
-    info->onMessage(message);
+    uvre::DebugMessageInfo msg = {};
+    msg.text = message;
+
+    switch(severity) {
+        case GL_DEBUG_SEVERITY_HIGH:
+            msg.level = uvre::DebugMessageLevel::ERROR;
+            break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            msg.level = uvre::DebugMessageLevel::WARN;
+            break;
+        case GL_DEBUG_SEVERITY_LOW:
+            msg.level = uvre::DebugMessageLevel::INFO;
+            break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+            msg.level = uvre::DebugMessageLevel::DEBUG;
+            break;
+    }
+
+    reinterpret_cast<const uvre::DeviceInfo *>(arg)->onDebugMessage(msg);
 }
 
 static void destroyShader(uvre::Shader_S *shader)
@@ -23,7 +40,7 @@ static void destroyShader(uvre::Shader_S *shader)
     delete shader;
 }
 
-static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GL46_RenderDevice *device)
+static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::RenderDeviceImpl *device)
 {
     // Remove ourselves from the notify list.
     for(std::vector<uvre::Pipeline_S *>::const_iterator it = device->pipelines.cbegin(); it != device->pipelines.cend(); it++) {
@@ -34,8 +51,8 @@ static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GL46_RenderDevice 
     }
 
     // Chain-free the VAO list
-    for(uvre::VertexArray *node = pipeline->vaos; node;) {
-        uvre::VertexArray *next = node->next;
+    for(uvre::VertexArray_S *node = pipeline->vaos; node;) {
+        uvre::VertexArray_S *next = node->next;
         glDeleteVertexArrays(1, &node->vaobj);
         delete node;
         node = next;
@@ -45,7 +62,7 @@ static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::GL46_RenderDevice 
     delete pipeline;
 }
 
-static void destroyBuffer(uvre::Buffer_S *buffer, uvre::GL46_RenderDevice *device)
+static void destroyBuffer(uvre::Buffer_S *buffer, uvre::RenderDeviceImpl *device)
 {
     // Remove ourselves from the notify list.
     for(std::vector<uvre::Buffer_S *>::const_iterator it = device->buffers.cbegin(); it != device->buffers.cend(); it++) {
@@ -78,7 +95,7 @@ static void destroyRenderTarget(uvre::RenderTarget_S *target)
     delete target;
 }
 
-uvre::GL46_RenderDevice::GL46_RenderDevice(const uvre::DeviceInfo &info)
+uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceInfo &info)
     : info(info), vbos(nullptr), bound_pipeline(), null_pipeline(), pipelines(), buffers(), commandlists()
 {
     glGetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &max_vbo_bindings);
@@ -100,16 +117,16 @@ uvre::GL46_RenderDevice::GL46_RenderDevice(const uvre::DeviceInfo &info)
     vbos->is_free = true;
     vbos->next = nullptr;
 
-    if(this->info.onMessage) {
+    if(this->info.onDebugMessage) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(debugCallback, &this->info);
     }
 }
 
-uvre::GL46_RenderDevice::~GL46_RenderDevice()
+uvre::RenderDeviceImpl::~RenderDeviceImpl()
 {
-    for(uvre::GL46_CommandList *commandlist : commandlists)
+    for(uvre::CommandListImpl *commandlist : commandlists)
         delete commandlist;
 
     pipelines.clear();
@@ -121,7 +138,7 @@ uvre::GL46_RenderDevice::~GL46_RenderDevice()
     glDebugMessageCallback(nullptr, nullptr);
 }
 
-uvre::Shader uvre::GL46_RenderDevice::createShader(const uvre::ShaderInfo &info)
+uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
 {
     std::stringstream ss;
     ss << "#version 460 core" << std::endl;
@@ -175,12 +192,16 @@ uvre::Shader uvre::GL46_RenderDevice::createShader(const uvre::ShaderInfo &info)
             return nullptr;
     }
 
-    if(this->info.onMessage) {
+    if(this->info.onDebugMessage) {
         glGetShaderiv(shobj, GL_INFO_LOG_LENGTH, &info_log_length);
         if(info_log_length > 1) {
             info_log.resize(info_log_length);
             glGetShaderInfoLog(shobj, static_cast<GLsizei>(info_log.size()), nullptr, &info_log[0]);
-            this->info.onMessage(info_log.c_str());
+
+            uvre::DebugMessageInfo msg = {};
+            msg.level = uvre::DebugMessageLevel::INFO;
+            msg.text = info_log.c_str();
+            this->info.onDebugMessage(msg);
         }
     }
 
@@ -196,12 +217,16 @@ uvre::Shader uvre::GL46_RenderDevice::createShader(const uvre::ShaderInfo &info)
     glLinkProgram(prog);
     glDeleteShader(shobj);
 
-    if(this->info.onMessage) {
+    if(this->info.onDebugMessage) {
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &info_log_length);
         if(info_log_length > 1) {
             info_log.resize(info_log_length);
             glGetProgramInfoLog(prog, static_cast<GLsizei>(info_log.size()), nullptr, &info_log[0]);
-            this->info.onMessage(info_log.c_str());
+
+            uvre::DebugMessageInfo msg = {};
+            msg.level = uvre::DebugMessageLevel::INFO;
+            msg.text = info_log.c_str();
+            this->info.onDebugMessage(msg);
         }
     }
 
@@ -374,7 +399,7 @@ static inline uint32_t getFillMode(uvre::FillMode mode)
     }
 }
 
-static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_S *pipeline)
+static inline void setVertexFormat(uvre::VertexArray_S *vao, const uvre::Pipeline_S *pipeline)
 {
     if(vao && vao != &dummy_vao) {
         for(size_t i = 0; i < pipeline->num_attributes; i++) {
@@ -394,15 +419,15 @@ static inline void setVertexFormat(uvre::VertexArray *vao, const uvre::Pipeline_
     }
 }
 
-static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32_t index, const uvre::Pipeline_S *pipeline)
+static inline uvre::VertexArray_S *getVertexArray(uvre::VertexArray_S **head, uint32_t index, const uvre::Pipeline_S *pipeline)
 {
-    for(uvre::VertexArray *node = *head; node; node = node->next) {
+    for(uvre::VertexArray_S *node = *head; node; node = node->next) {
         if(index != node->index)
             continue;
         return node;
     }
 
-    uvre::VertexArray *next = new uvre::VertexArray;
+    uvre::VertexArray_S *next = new uvre::VertexArray_S;
     next->index = (*head)->index + 1;
     glCreateVertexArrays(1, &next->vaobj);
     next->vbobj = 0;
@@ -412,7 +437,7 @@ static inline uvre::VertexArray *getVertexArray(uvre::VertexArray **head, uint32
     return next;
 }
 
-uvre::Pipeline uvre::GL46_RenderDevice::createPipeline(const uvre::PipelineInfo &info)
+uvre::Pipeline uvre::RenderDeviceImpl::createPipeline(const uvre::PipelineInfo &info)
 {
     uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
@@ -438,7 +463,7 @@ uvre::Pipeline uvre::GL46_RenderDevice::createPipeline(const uvre::PipelineInfo 
     pipeline->attributes = new uvre::VertexAttrib[pipeline->num_attributes];
     std::copy(info.vertex_attribs, info.vertex_attribs + info.num_vertex_attribs, pipeline->attributes);
 
-    pipeline->vaos = new uvre::VertexArray;
+    pipeline->vaos = new uvre::VertexArray_S;
     pipeline->vaos->index = 0;
     glCreateVertexArrays(1, &pipeline->vaos->vaobj);
     pipeline->vaos->next = nullptr;
@@ -479,7 +504,7 @@ static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **head)
     return next;
 }
 
-uvre::Buffer uvre::GL46_RenderDevice::createBuffer(const uvre::BufferInfo &info)
+uvre::Buffer uvre::RenderDeviceImpl::createBuffer(const uvre::BufferInfo &info)
 {
     uvre::Buffer buffer(new uvre::Buffer_S, std::bind(destroyBuffer, std::placeholders::_1, this));
 
@@ -506,14 +531,14 @@ uvre::Buffer uvre::GL46_RenderDevice::createBuffer(const uvre::BufferInfo &info)
     return buffer;
 }
 
-void uvre::GL46_RenderDevice::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
+void uvre::RenderDeviceImpl::writeBuffer(uvre::Buffer buffer, size_t offset, size_t size, const void *data)
 {
     if(offset + size > buffer->size)
         return;
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 }
 
-uvre::Sampler uvre::GL46_RenderDevice::createSampler(const uvre::SamplerInfo &info)
+uvre::Sampler uvre::RenderDeviceImpl::createSampler(const uvre::SamplerInfo &info)
 {
     uint32_t ssobj;
     glCreateSamplers(1, &ssobj);
@@ -637,7 +662,7 @@ static inline uint32_t getInternalFormat(uvre::PixelFormat format)
     }
 }
 
-uvre::Texture uvre::GL46_RenderDevice::createTexture(const uvre::TextureInfo &info)
+uvre::Texture uvre::RenderDeviceImpl::createTexture(const uvre::TextureInfo &info)
 {
     uint32_t texobj;
     uint32_t format = getInternalFormat(info.format);
@@ -783,7 +808,7 @@ static bool getExternalFormat(uvre::PixelFormat format, uint32_t &fmt, uint32_t 
     return true;
 }
 
-void uvre::GL46_RenderDevice::writeTexture2D(uvre::Texture texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::RenderDeviceImpl::writeTexture2D(uvre::Texture texture, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
@@ -791,7 +816,7 @@ void uvre::GL46_RenderDevice::writeTexture2D(uvre::Texture texture, int x, int y
     glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, data);
 }
 
-void uvre::GL46_RenderDevice::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
+void uvre::RenderDeviceImpl::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
@@ -799,7 +824,7 @@ void uvre::GL46_RenderDevice::writeTextureCube(uvre::Texture texture, int face, 
     glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, data);
 }
 
-void uvre::GL46_RenderDevice::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
+void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type)) 
@@ -807,7 +832,7 @@ void uvre::GL46_RenderDevice::writeTextureArray(uvre::Texture texture, int x, in
     glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
 }
 
-uvre::RenderTarget uvre::GL46_RenderDevice::createRenderTarget(const uvre::RenderTargetInfo &info)
+uvre::RenderTarget uvre::RenderDeviceImpl::createRenderTarget(const uvre::RenderTargetInfo &info)
 {
     uint32_t fbobj;
     glCreateFramebuffers(1, &fbobj);
@@ -829,16 +854,16 @@ uvre::RenderTarget uvre::GL46_RenderDevice::createRenderTarget(const uvre::Rende
     return target;
 }
 
-uvre::ICommandList *uvre::GL46_RenderDevice::createCommandList()
+uvre::ICommandList *uvre::RenderDeviceImpl::createCommandList()
 {
-    uvre::GL46_CommandList *commands = new uvre::GL46_CommandList();
+    uvre::CommandListImpl *commands = new uvre::CommandListImpl();
     commandlists.push_back(commands);
     return commands;
 }
 
-void uvre::GL46_RenderDevice::destroyCommandList(uvre::ICommandList *commands)
+void uvre::RenderDeviceImpl::destroyCommandList(uvre::ICommandList *commands)
 {
-    for(std::vector<uvre::GL46_CommandList *>::const_iterator it = commandlists.cbegin(); it != commandlists.cend(); it++) {
+    for(std::vector<uvre::CommandListImpl *>::const_iterator it = commandlists.cbegin(); it != commandlists.cend(); it++) {
         if(*it == commands) {
             commandlists.erase(it);
             delete commands;
@@ -847,18 +872,18 @@ void uvre::GL46_RenderDevice::destroyCommandList(uvre::ICommandList *commands)
     }
 }
 
-void uvre::GL46_RenderDevice::startRecording(uvre::ICommandList *commands)
+void uvre::RenderDeviceImpl::startRecording(uvre::ICommandList *commands)
 {
-    uvre::GL46_CommandList *glcommands = static_cast<uvre::GL46_CommandList *>(commands);
+    uvre::CommandListImpl *glcommands = static_cast<uvre::CommandListImpl *>(commands);
     glcommands->num_commands = 0;
 }
 
-void uvre::GL46_RenderDevice::submit(uvre::ICommandList *commands)
+void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
 {
-    uvre::GL46_CommandList *glcommands = static_cast<uvre::GL46_CommandList *>(commands);
+    uvre::CommandListImpl *glcommands = static_cast<uvre::CommandListImpl *>(commands);
     for(size_t i = 0; i < glcommands->num_commands; i++) {
         const uvre::Command &cmd = glcommands->commands[i];
-        uvre::VertexArray *vaonode = nullptr;
+        uvre::VertexArray_S *vaonode = nullptr;
         switch(cmd.type) {
             case uvre::CommandType::SET_SCISSOR:
                 glScissor(cmd.scvp.x, cmd.scvp.y, cmd.scvp.w, cmd.scvp.h);
@@ -941,24 +966,24 @@ void uvre::GL46_RenderDevice::submit(uvre::ICommandList *commands)
     }
 }
 
-void uvre::GL46_RenderDevice::prepare()
+void uvre::RenderDeviceImpl::prepare()
 {
     // Third-party overlay applications
     // can cause mayhem if this is not called.
     glUseProgram(0);
 }
 
-void uvre::GL46_RenderDevice::present()
+void uvre::RenderDeviceImpl::present()
 {
     info.gl.swapBuffers(info.gl.user_data);
 }
 
-void uvre::GL46_RenderDevice::vsync(bool enable)
+void uvre::RenderDeviceImpl::vsync(bool enable)
 {
     info.gl.setSwapInterval(info.gl.user_data, enable ? 1 : 0);
 }
 
-void uvre::GL46_RenderDevice::mode(int, int)
+void uvre::RenderDeviceImpl::mode(int, int)
 {
     // Nothing in OpenGL
 }

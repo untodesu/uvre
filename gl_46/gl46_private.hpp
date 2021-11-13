@@ -16,11 +16,11 @@
 
 namespace uvre
 {
-struct VertexArray final {
+struct VertexArray_S final {
     uint32_t index;
     uint32_t vaobj;
     uint32_t vbobj; // OPTIMIZE
-    VertexArray *next;
+    VertexArray_S *next;
 };
 
 struct VBOBinding final {
@@ -61,7 +61,7 @@ struct Pipeline_S final {
     size_t vertex_stride;
     size_t num_attributes;
     VertexAttrib *attributes;
-    VertexArray *vaos;
+    VertexArray_S *vaos;
 };
 
 struct Buffer_S final {
@@ -151,10 +151,10 @@ struct Command final {
     };
 };
 
-class GL46_RenderDevice;
-class GL46_CommandList final : public ICommandList {
+class RenderDeviceImpl;
+class CommandListImpl final : public ICommandList {
 public:
-    GL46_CommandList();
+    CommandListImpl();
 
     void setScissor(int x, int y, int width, int height) override;
     void setViewport(int x, int y, int width, int height) override;
@@ -183,10 +183,10 @@ public:
     size_t num_commands;
 };
 
-class GL46_RenderDevice final : public IRenderDevice {
+class RenderDeviceImpl final : public IRenderDevice {
 public:
-    GL46_RenderDevice(const DeviceInfo &info);
-    virtual ~GL46_RenderDevice();
+    RenderDeviceImpl(const DeviceInfo &info);
+    virtual ~RenderDeviceImpl();
 
     Shader createShader(const ShaderInfo &info) override;
     Pipeline createPipeline(const PipelineInfo &info) override;
@@ -218,6 +218,6 @@ public:
     Pipeline_S null_pipeline;
     std::vector<Pipeline_S *> pipelines;
     std::vector<Buffer_S *> buffers;
-    std::vector<GL46_CommandList *> commandlists;
+    std::vector<CommandListImpl *> commandlists;
 };
 } // namespace uvre

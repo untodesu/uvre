@@ -6,6 +6,7 @@
  * License, v2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <cstring>
 #include <functional>
 #include "gl46_private.hpp"
 
@@ -31,7 +32,7 @@ static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum severity, GL
             break;
     }
 
-    reinterpret_cast<const uvre::DeviceInfo *>(arg)->onDebugMessage(msg);
+    reinterpret_cast<const uvre::DeviceCreateInfo *>(arg)->onDebugMessage(msg);
 }
 
 static void destroyShader(uvre::Shader_S *shader)
@@ -95,10 +96,18 @@ static void destroyRenderTarget(uvre::RenderTarget_S *target)
     delete target;
 }
 
-uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceInfo &info)
-    : info(info), vbos(nullptr), bound_pipeline(), null_pipeline(), pipelines(), buffers(), commandlists()
+uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceCreateInfo &create_info)
+    : create_info(create_info), vbos(nullptr), bound_pipeline(), null_pipeline(), pipelines(), buffers(), commandlists()
 {
     glGetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &max_vbo_bindings);
+
+    std::memset(&info, 0, sizeof(uvre::DeviceInfo));
+    info.impl_family = uvre::ImplFamily::OPENGL;
+    info.impl_version_major = 4;
+    info.impl_version_minor = 5;
+    info.supports_storage_buffers = true;
+    info.supports_shader_format[static_cast<int>(uvre::ShaderFormat::BINARY_SPIRV)] = true;
+    info.supports_shader_format[static_cast<int>(uvre::ShaderFormat::SOURCE_GLSL)] = true;
 
     null_pipeline.blending.enabled = false;
     null_pipeline.depth_testing.enabled = false;
@@ -117,10 +126,10 @@ uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceInfo &info)
     vbos->is_free = true;
     vbos->next = nullptr;
 
-    if(this->info.onDebugMessage) {
+    if(create_info.onDebugMessage) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        glDebugMessageCallback(debugCallback, &this->info);
+        glDebugMessageCallback(debugCallback, &create_info);
     }
 }
 
@@ -138,7 +147,12 @@ uvre::RenderDeviceImpl::~RenderDeviceImpl()
     glDebugMessageCallback(nullptr, nullptr);
 }
 
-uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
+const uvre::DeviceInfo &uvre::RenderDeviceImpl::getInfo() const
+{
+    return info;
+}
+
+uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderCreateInfo &info)
 {
     std::stringstream ss;
     ss << "#version 460 core" << std::endl;
@@ -192,7 +206,7 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
             return nullptr;
     }
 
-    if(this->info.onDebugMessage) {
+    if(create_info.onDebugMessage) {
         glGetShaderiv(shobj, GL_INFO_LOG_LENGTH, &info_log_length);
         if(info_log_length > 1) {
             info_log.resize(info_log_length);
@@ -201,7 +215,7 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
             uvre::DebugMessageInfo msg = {};
             msg.level = uvre::DebugMessageLevel::INFO;
             msg.text = info_log.c_str();
-            this->info.onDebugMessage(msg);
+            create_info.onDebugMessage(msg);
         }
     }
 
@@ -217,7 +231,7 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
     glLinkProgram(prog);
     glDeleteShader(shobj);
 
-    if(this->info.onDebugMessage) {
+    if(create_info.onDebugMessage) {
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &info_log_length);
         if(info_log_length > 1) {
             info_log.resize(info_log_length);
@@ -226,7 +240,7 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderInfo &info)
             uvre::DebugMessageInfo msg = {};
             msg.level = uvre::DebugMessageLevel::INFO;
             msg.text = info_log.c_str();
-            this->info.onDebugMessage(msg);
+            create_info.onDebugMessage(msg);
         }
     }
 
@@ -437,7 +451,7 @@ static inline uvre::VertexArray_S *getVertexArray(uvre::VertexArray_S **head, ui
     return next;
 }
 
-uvre::Pipeline uvre::RenderDeviceImpl::createPipeline(const uvre::PipelineInfo &info)
+uvre::Pipeline uvre::RenderDeviceImpl::createPipeline(const uvre::PipelineCreateInfo &info)
 {
     uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
@@ -504,7 +518,7 @@ static uvre::VBOBinding *getFreeVBOBinding(uvre::VBOBinding **head)
     return next;
 }
 
-uvre::Buffer uvre::RenderDeviceImpl::createBuffer(const uvre::BufferInfo &info)
+uvre::Buffer uvre::RenderDeviceImpl::createBuffer(const uvre::BufferCreateInfo &info)
 {
     uvre::Buffer buffer(new uvre::Buffer_S, std::bind(destroyBuffer, std::placeholders::_1, this));
 
@@ -538,7 +552,7 @@ void uvre::RenderDeviceImpl::writeBuffer(uvre::Buffer buffer, size_t offset, siz
     glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 }
 
-uvre::Sampler uvre::RenderDeviceImpl::createSampler(const uvre::SamplerInfo &info)
+uvre::Sampler uvre::RenderDeviceImpl::createSampler(const uvre::SamplerCreateInfo &info)
 {
     uint32_t ssobj;
     glCreateSamplers(1, &ssobj);
@@ -662,7 +676,7 @@ static inline uint32_t getInternalFormat(uvre::PixelFormat format)
     }
 }
 
-uvre::Texture uvre::RenderDeviceImpl::createTexture(const uvre::TextureInfo &info)
+uvre::Texture uvre::RenderDeviceImpl::createTexture(const uvre::TextureCreateInfo &info)
 {
     uint32_t texobj;
     uint32_t format = getInternalFormat(info.format);
@@ -832,7 +846,7 @@ void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int
     glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
 }
 
-uvre::RenderTarget uvre::RenderDeviceImpl::createRenderTarget(const uvre::RenderTargetInfo &info)
+uvre::RenderTarget uvre::RenderDeviceImpl::createRenderTarget(const uvre::RenderTargetCreateInfo &info)
 {
     uint32_t fbobj;
     glCreateFramebuffers(1, &fbobj);
@@ -975,12 +989,12 @@ void uvre::RenderDeviceImpl::prepare()
 
 void uvre::RenderDeviceImpl::present()
 {
-    info.gl.swapBuffers(info.gl.user_data);
+    create_info.gl.swapBuffers(create_info.gl.user_data);
 }
 
 void uvre::RenderDeviceImpl::vsync(bool enable)
 {
-    info.gl.setSwapInterval(info.gl.user_data, enable ? 1 : 0);
+    create_info.gl.setSwapInterval(create_info.gl.user_data, enable ? 1 : 0);
 }
 
 void uvre::RenderDeviceImpl::mode(int, int)

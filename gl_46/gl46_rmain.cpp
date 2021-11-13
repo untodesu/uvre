@@ -8,15 +8,15 @@
  */
 #include "gl46_private.hpp"
 
-UVRE_API void uvre::pollImplApiInfo(uvre::ImplApiInfo &info)
+UVRE_API void uvre::pollImplInfo(uvre::ImplInfo &info)
 {
-    info.family = uvre::ImplApiFamily::OPENGL;
+    info.family = uvre::ImplFamily::OPENGL;
     info.gl.core_profile = true;
     info.gl.version_major = 4;
     info.gl.version_minor = 6;
 }
 
-UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::DeviceInfo &info)
+UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::DeviceCreateInfo &info)
 {
     if(!info.gl.setSwapInterval || !info.gl.swapBuffers || !info.gl.makeContextCurrent || !info.gl.getProcAddr)
         return nullptr;

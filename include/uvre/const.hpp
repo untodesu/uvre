@@ -43,7 +43,8 @@ enum class ShaderStage {
 
 enum class ShaderFormat {
     BINARY_SPIRV,
-    SOURCE_GLSL
+    SOURCE_GLSL,
+    NUM_SHADER_FORMATS
 };
 
 enum class TextureType {
@@ -144,7 +145,7 @@ enum class DebugMessageLevel {
     ERROR
 };
 
-enum class ImplApiFamily {
+enum class ImplFamily {
     OPENGL
 };
 

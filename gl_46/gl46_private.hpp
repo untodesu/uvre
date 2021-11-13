@@ -185,15 +185,17 @@ public:
 
 class RenderDeviceImpl final : public IRenderDevice {
 public:
-    RenderDeviceImpl(const DeviceInfo &info);
+    RenderDeviceImpl(const DeviceCreateInfo &info);
     virtual ~RenderDeviceImpl();
 
-    Shader createShader(const ShaderInfo &info) override;
-    Pipeline createPipeline(const PipelineInfo &info) override;
-    Buffer createBuffer(const BufferInfo &info) override;
-    Sampler createSampler(const SamplerInfo &info) override;
-    Texture createTexture(const TextureInfo &info) override;
-    RenderTarget createRenderTarget(const RenderTargetInfo &info) override;
+    const DeviceInfo &getInfo() const;
+
+    Shader createShader(const ShaderCreateInfo &info) override;
+    Pipeline createPipeline(const PipelineCreateInfo &info) override;
+    Buffer createBuffer(const BufferCreateInfo &info) override;
+    Sampler createSampler(const SamplerCreateInfo &info) override;
+    Texture createTexture(const TextureCreateInfo &info) override;
+    RenderTarget createRenderTarget(const RenderTargetCreateInfo &info) override;
     
     void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) override;
     void writeTexture2D(Texture texture, int x, int y, int w, int h, PixelFormat format, const void *data) override;
@@ -211,6 +213,7 @@ public:
     void mode(int width, int height) override;
 
 public:
+    DeviceCreateInfo create_info;
     int32_t max_vbo_bindings;
     DeviceInfo info;
     VBOBinding *vbos;

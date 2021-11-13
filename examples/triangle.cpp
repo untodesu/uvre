@@ -60,8 +60,8 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::ImplApiInfo impl_info;
-    uvre::pollImplApiInfo(impl_info);
+    uvre::ImplInfo impl_info;
+    uvre::pollImplInfo(impl_info);
 
     // Do not require any client API by default
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -70,7 +70,7 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     // If the implementation is OpenGL-ish
-    if(impl_info.family == uvre::ImplApiFamily::OPENGL) {
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_OPENGL_PROFILE, impl_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, impl_info.gl.version_major);
@@ -92,10 +92,10 @@ int main()
     // Now the windowing API also needs to pass some
     // data to the library before creating a rendering
     // device. Usually this data is API-specific callbacks.
-    uvre::DeviceInfo device_info = {};
+    uvre::DeviceCreateInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(impl_info.family == uvre::ImplApiFamily::OPENGL) {
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
@@ -126,18 +126,18 @@ int main()
     // in order to create a valid object.
     // Some structures may have default values set to their fields
     // but I advise you to fill every field manually (except for
-    // maybe LOD levels in uvre::TextureInfo structure).
+    // maybe LOD levels in uvre::TextureCreateInfo structure).
 
     // Start a new scope so the objects are safely killed after use.
     {
         // Vertex shader creation info.
-        uvre::ShaderInfo vert_info = {};
+        uvre::ShaderCreateInfo vert_info = {};
         vert_info.stage = uvre::ShaderStage::VERTEX;
         vert_info.format = uvre::ShaderFormat::SOURCE_GLSL;
         vert_info.code = vert_source;
 
         // Fragment shader creation info.
-        uvre::ShaderInfo frag_info = {};
+        uvre::ShaderCreateInfo frag_info = {};
         frag_info.stage = uvre::ShaderStage::FRAGMENT;
         frag_info.format = uvre::ShaderFormat::SOURCE_GLSL;
         frag_info.code = frag_source;
@@ -161,7 +161,7 @@ int main()
         attributes[1] = uvre::VertexAttrib { 1, uvre::VertexAttribType::FLOAT32, 2, offsetof(vertex, texcoord), false };
 
         // Pipeline creation info.
-        uvre::PipelineInfo pipeline_info = {};
+        uvre::PipelineCreateInfo pipeline_info = {};
         pipeline_info.blending.enabled = false;
         pipeline_info.depth_testing.enabled = false;
         pipeline_info.face_culling.enabled = false;
@@ -188,7 +188,7 @@ int main()
         };
 
         // Vertex buffer creation info.
-        uvre::BufferInfo vbo_info = {};
+        uvre::BufferCreateInfo vbo_info = {};
         vbo_info.type = uvre::BufferType::VERTEX_BUFFER;
         vbo_info.size = sizeof(vertices);
         vbo_info.data = vertices;
@@ -200,7 +200,7 @@ int main()
         uvre::Buffer vbo = device->createBuffer(vbo_info);
 
         // Color attachment creation info.
-        uvre::TextureInfo color_info = {};
+        uvre::TextureCreateInfo color_info = {};
         color_info.type = uvre::TextureType::TEXTURE_2D;
         color_info.format = uvre::PixelFormat::R16G16B16_UNORM;
         color_info.width = WINDOW_WIDTH;
@@ -212,7 +212,7 @@ int main()
         color_attachment.color = device->createTexture(color_info);
 
         // Render target creation info.
-        uvre::RenderTargetInfo target_info = {};
+        uvre::RenderTargetCreateInfo target_info = {};
         target_info.num_color_attachments = 1;
         target_info.color_attachments = &color_attachment;
 

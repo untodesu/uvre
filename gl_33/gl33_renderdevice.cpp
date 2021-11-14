@@ -127,9 +127,17 @@ uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceCreateInfo &create_in
     vbos->next = nullptr;
 
     if(create_info.onDebugMessage) {
-        glEnable(GL_DEBUG_OUTPUT);
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        glDebugMessageCallback(debugCallback, &create_info);
+        if(GLAD_GL_KHR_debug) {
+            glEnable(GL_DEBUG_OUTPUT);
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            glDebugMessageCallback(debugCallback, &create_info);
+        }
+        else {
+            uvre::DebugMessageInfo msg = {};
+            msg.level = uvre::DebugMessageLevel::WARN;
+            msg.text = "GLAD_GL_KHR_debug not present";
+            create_info.onDebugMessage(msg);
+        }
     }
 }
 

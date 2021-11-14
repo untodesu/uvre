@@ -8,6 +8,16 @@
  */
 #include "gl33_private.hpp"
 
+static void pushErrorMessage(const uvre::DeviceCreateInfo &info, const char *text)
+{
+    if(info.onDebugMessage) {
+        uvre::DebugMessageInfo msg = {};
+        msg.level = uvre::DebugMessageLevel::ERROR;
+        msg.text = text;
+        info.onDebugMessage(msg);
+    }
+}
+
 UVRE_API void uvre::pollImplInfo(uvre::ImplInfo &info)
 {
     info.family = uvre::ImplFamily::OPENGL;
@@ -23,18 +33,15 @@ UVRE_API uvre::IRenderDevice *uvre::createDevice(const uvre::DeviceCreateInfo &i
 
     info.gl.makeContextCurrent(info.gl.user_data);
     if(gladLoadGLUserPtr(reinterpret_cast<GLADuserptrloadfunc>(info.gl.getProcAddr), info.gl.user_data)) {
-        if(!GLAD_GL_ARB_vertex_attrib_binding) {
-            if(info.onDebugMessage) {
-                uvre::DebugMessageInfo msg = {};
-                msg.level = uvre::DebugMessageLevel::ERROR;
-                msg.text = "GL_ARB_vertex_attrib_binding is required";
-                info.onDebugMessage(msg);
-            }
-
-            // Unfortunately we require at least this extension
-            // to be present for OpenGL 3.3 because UVRE's API
-            // requires buffers to be separated from the vertex format
-            // because there can be multiple VAOs with multiple VBOs.
+        if(!GLAD_GL_ARB_base_instance || !GLAD_GL_ARB_vertex_attrib_binding) {
+            // Unfortunately we still require some extensions
+            // to be present in order for UVRE to completely
+            // work and be cool. And some of these extensions
+            // are required to be here.
+            if(!GLAD_GL_ARB_base_instance)
+                pushErrorMessage(info, "GL_ARB_base_instance is required");
+            if(!GLAD_GL_ARB_vertex_attrib_binding)
+                pushErrorMessage(info, "GL_ARB_vertex_attrib_binding is required");
             return nullptr;
         }
 

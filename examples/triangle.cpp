@@ -21,27 +21,36 @@ struct vertex final {
 static const char *vert_source = R"(
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 texcoord;
-layout(location = 0) out vec2 fs_texcoord;
-out gl_PerVertex { vec4 gl_Position; };
+out VS_OUTPUT {
+    vec2 texcoord;
+} vert;
 void main()
 {
-    fs_texcoord = texcoord;
+    vert.texcoord = texcoord;
     gl_Position = vec4(position, 0.0, 1.0);
 })";
 
 // Fragment shader source
 static const char *frag_source = R"(
-layout(location = 0) in vec2 texcoord;
-layout(location = 0) out vec4 fs_target;
+layout(location = 0) out vec4 target;
+in VS_OUTPUT {
+    vec2 texcoord;
+} vert;
 void main()
 {
-    fs_target = vec4(texcoord, 1.0, 1.0);
+    target = vec4(vert.texcoord, 1.0, 1.0);
 })";
 
 // GLFW error callback
 static void onGlfwError(int, const char *message)
 {
     std::cerr << message << std::endl;
+}
+
+// Debug callback
+static void onDebugMessage(const uvre::DebugMessageInfo &msg)
+{
+    std::cout << msg.text << std::endl;
 }
 
 int main()
@@ -55,8 +64,8 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::BackendInfo backend_info;
-    uvre::pollBackendInfo(backend_info);
+    uvre::ImplInfo impl_info;
+    uvre::pollImplInfo(impl_info);
 
     // Do not require any client API by default
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -64,20 +73,20 @@ int main()
     // Non-resizable.
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    // If the backend API is OpenGL-ish
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    // If the implementation is OpenGL-ish
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, backend_info.gl.version_minor);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, impl_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, impl_info.gl.version_major);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, impl_info.gl.version_minor);
 
 #if defined(__APPLE__)
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
     }
 
-    constexpr const int WINDOW_WIDTH = 1280;
-    constexpr const int WINDOW_HEIGHT = 960;
+    constexpr const int WINDOW_WIDTH = 640;
+    constexpr const int WINDOW_HEIGHT = 480;
 
     // Open a new window
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "UVRE - Triangle", nullptr, nullptr);
@@ -87,10 +96,10 @@ int main()
     // Now the windowing API also needs to pass some
     // data to the library before creating a rendering
     // device. Usually this data is API-specific callbacks.
-    uvre::DeviceInfo device_info = {};
+    uvre::DeviceCreateInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
@@ -99,7 +108,7 @@ int main()
     }
 
     // Message callback
-    device_info.onMessage = [](const char *message) { std::cerr << message << std::endl; };
+    device_info.onDebugMessage = &onDebugMessage;
 
     // Now we create the rendering device.
     // Rendering device is an object that works
@@ -112,7 +121,7 @@ int main()
     // After the rendering device is created and initialized,
     // we need to create a command list object. A command list
     // is an object which whole purpose is to record drawing
-    // commands and then submit them to the backend API.
+    // commands and then submit them to the implementation.
     uvre::ICommandList *commands = device->createCommandList();
 
     // Now let's talk about how UVRE manages object creation.
@@ -121,18 +130,18 @@ int main()
     // in order to create a valid object.
     // Some structures may have default values set to their fields
     // but I advise you to fill every field manually (except for
-    // maybe LOD levels in uvre::TextureInfo structure).
+    // maybe LOD levels in uvre::TextureCreateInfo structure).
 
     // Start a new scope so the objects are safely killed after use.
     {
         // Vertex shader creation info.
-        uvre::ShaderInfo vert_info = {};
+        uvre::ShaderCreateInfo vert_info = {};
         vert_info.stage = uvre::ShaderStage::VERTEX;
         vert_info.format = uvre::ShaderFormat::SOURCE_GLSL;
         vert_info.code = vert_source;
 
         // Fragment shader creation info.
-        uvre::ShaderInfo frag_info = {};
+        uvre::ShaderCreateInfo frag_info = {};
         frag_info.stage = uvre::ShaderStage::FRAGMENT;
         frag_info.format = uvre::ShaderFormat::SOURCE_GLSL;
         frag_info.code = frag_source;
@@ -156,7 +165,7 @@ int main()
         attributes[1] = uvre::VertexAttrib { 1, uvre::VertexAttribType::FLOAT32, 2, offsetof(vertex, texcoord), false };
 
         // Pipeline creation info.
-        uvre::PipelineInfo pipeline_info = {};
+        uvre::PipelineCreateInfo pipeline_info = {};
         pipeline_info.blending.enabled = false;
         pipeline_info.depth_testing.enabled = false;
         pipeline_info.face_culling.enabled = false;
@@ -183,7 +192,7 @@ int main()
         };
 
         // Vertex buffer creation info.
-        uvre::BufferInfo vbo_info = {};
+        uvre::BufferCreateInfo vbo_info = {};
         vbo_info.type = uvre::BufferType::VERTEX_BUFFER;
         vbo_info.size = sizeof(vertices);
         vbo_info.data = vertices;
@@ -195,7 +204,7 @@ int main()
         uvre::Buffer vbo = device->createBuffer(vbo_info);
 
         // Color attachment creation info.
-        uvre::TextureInfo color_info = {};
+        uvre::TextureCreateInfo color_info = {};
         color_info.type = uvre::TextureType::TEXTURE_2D;
         color_info.format = uvre::PixelFormat::R16G16B16_UNORM;
         color_info.width = WINDOW_WIDTH;
@@ -207,7 +216,7 @@ int main()
         color_attachment.color = device->createTexture(color_info);
 
         // Render target creation info.
-        uvre::RenderTargetInfo target_info = {};
+        uvre::RenderTargetCreateInfo target_info = {};
         target_info.num_color_attachments = 1;
         target_info.color_attachments = &color_attachment;
 
@@ -215,7 +224,7 @@ int main()
         uvre::RenderTarget target = device->createRenderTarget(target_info);
 
         // Now the main loop. It should look pretty much the same
-        // for all the backend APIs. UVRE is not an exception.
+        // for all the implementations. UVRE is not an exception.
         while(!glfwWindowShouldClose(window)) {
             // Prepare the state to a new frame
             device->prepare();
@@ -249,7 +258,7 @@ int main()
 
             // Copy or "blit" the render target to the screen.
             // We'll leave a small 16px gap to indicate that it works.
-            commands->copyRenderTarget(target, nullptr, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 16, 16, WINDOW_WIDTH - 16, WINDOW_HEIGHT - 16, uvre::RT_COLOR_BUFFER, true);
+            commands->copyRenderTarget(target, nullptr, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 32, 32, WINDOW_WIDTH - 32, WINDOW_HEIGHT - 32, uvre::RT_COLOR_BUFFER, true);
 
             // Finish recording and submit the command list.
             // This does nothing for OpenGL.

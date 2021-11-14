@@ -2,7 +2,11 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-find_package(glfw3 3.3 REQUIRED)
+find_package(glfw3 3.3)
+if(NOT GLFW_FOUND)
+    # I tend to store GLFW there
+    add_subdirectory(glfw)
+endif()
 
 function(add_example_executable target)
     add_executable(${target} "${CMAKE_CURRENT_LIST_DIR}/${target}.cpp")

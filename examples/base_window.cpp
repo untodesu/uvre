@@ -25,6 +25,12 @@ static void onGlfwFramebufferSize(GLFWwindow *window, int width, int height)
     device->mode(width, height);
 }
 
+// Debug callback
+static void onDebugMessage(const uvre::DebugMessageInfo &msg)
+{
+    std::cout << msg.text << std::endl;
+}
+
 int main()
 {
     // Initialize GLFW
@@ -36,8 +42,8 @@ int main()
     // some information must be passed back
     // to the windowing API in order for it
     // to be correctly set up for UVRE.
-    uvre::BackendInfo backend_info;
-    uvre::pollBackendInfo(backend_info);
+    uvre::ImplInfo impl_info;
+    uvre::pollImplInfo(impl_info);
 
     // Do not require any client API by default
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -47,12 +53,12 @@ int main()
     // to be resizable. You are free to change this to GLFW_FALSE.
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    // If the backend API is OpenGL-ish
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    // If the implementation is OpenGL-ish
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, backend_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, backend_info.gl.version_major);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, backend_info.gl.version_minor);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, impl_info.gl.core_profile ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, impl_info.gl.version_major);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, impl_info.gl.version_minor);
 
 #if defined(__APPLE__)
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
@@ -70,10 +76,10 @@ int main()
     // Now the windowing API also needs to pass some
     // data to the library before creating a rendering
     // device. Usually this data is API-specific callbacks.
-    uvre::DeviceInfo device_info = {};
+    uvre::DeviceCreateInfo device_info = {};
 
     // OpenGL-specific callbacks
-    if(backend_info.family == uvre::BackendFamily::OPENGL) {
+    if(impl_info.family == uvre::ImplFamily::OPENGL) {
         device_info.gl.user_data = window;
         device_info.gl.getProcAddr = [](void *, const char *procname) { return reinterpret_cast<void *>(glfwGetProcAddress(procname)); };
         device_info.gl.makeContextCurrent = [](void *arg) { glfwMakeContextCurrent(reinterpret_cast<GLFWwindow *>(arg)); };
@@ -82,7 +88,7 @@ int main()
     }
 
     // Message callback
-    device_info.onMessage = [](const char *message) { std::cerr << message << std::endl; };
+    device_info.onDebugMessage = &onDebugMessage;
 
     // Now we create the rendering device.
     // Rendering device is an object that works
@@ -110,7 +116,7 @@ int main()
     uvre::ICommandList *commands = device->createCommandList();
 
     // Now the main loop. It should look pretty much the same
-    // for all the backend APIs. UVRE is not an exception.
+    // for all the implementations. UVRE is not an exception.
     while(!glfwWindowShouldClose(window)) {
         // Get the current window size.
         // This is unnecessary if you don't want the window

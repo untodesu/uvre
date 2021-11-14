@@ -16,11 +16,11 @@
 
 namespace uvre
 {
-struct VertexArray final {
+struct VertexArray_S final {
     uint32_t index;
     uint32_t vaobj;
     uint32_t vbobj; // OPTIMIZE
-    VertexArray *next;
+    VertexArray_S *next;
 };
 
 struct VBOBinding final {
@@ -54,13 +54,14 @@ struct Pipeline_S final {
         uint32_t front_face;
         uint32_t cull_face;
     } face_culling;
+    size_t index_size;
     uint32_t index_type;
     uint32_t primitive_mode;
     uint32_t fill_mode;
     size_t vertex_stride;
     size_t num_attributes;
     VertexAttrib *attributes;
-    VertexArray *vaos;
+    VertexArray_S *vaos;
 };
 
 struct Buffer_S final {
@@ -106,17 +107,17 @@ enum class CommandType {
 
 union DrawCmd final {
     struct {
-        uint32_t vertices;
-        uint32_t instances;
-        uint32_t base_vertex;
-        uint32_t base_instance;
+        int32_t vertices;
+        int32_t instances;
+        int32_t base_vertex;
+        int32_t base_instance;
     } a;
     struct {
-        uint32_t indices;
-        uint32_t instances;
-        uint32_t base_index;
-        uint32_t base_vertex;
-        uint32_t base_instance;
+        int32_t indices;
+        int32_t instances;
+        int32_t base_index;
+        int32_t base_vertex;
+        int32_t base_instance;
     } e;
 };
 
@@ -150,10 +151,10 @@ struct Command final {
     };
 };
 
-class GLRenderDevice;
-class GLCommandList final : public ICommandList {
+class RenderDeviceImpl;
+class CommandListImpl final : public ICommandList {
 public:
-    GLCommandList();
+    CommandListImpl();
 
     void setScissor(int x, int y, int width, int height) override;
     void setViewport(int x, int y, int width, int height) override;
@@ -182,18 +183,20 @@ public:
     size_t num_commands;
 };
 
-class GLRenderDevice final : public IRenderDevice {
+class RenderDeviceImpl final : public IRenderDevice {
 public:
-    GLRenderDevice(const DeviceInfo &info);
-    virtual ~GLRenderDevice();
+    RenderDeviceImpl(const DeviceCreateInfo &info);
+    virtual ~RenderDeviceImpl();
 
-    Shader createShader(const ShaderInfo &info) override;
-    Pipeline createPipeline(const PipelineInfo &info) override;
-    Buffer createBuffer(const BufferInfo &info) override;
-    Sampler createSampler(const SamplerInfo &info) override;
-    Texture createTexture(const TextureInfo &info) override;
-    RenderTarget createRenderTarget(const RenderTargetInfo &info) override;
-    
+    const DeviceInfo &getInfo() const;
+
+    Shader createShader(const ShaderCreateInfo &info) override;
+    Pipeline createPipeline(const PipelineCreateInfo &info) override;
+    Buffer createBuffer(const BufferCreateInfo &info) override;
+    Sampler createSampler(const SamplerCreateInfo &info) override;
+    Texture createTexture(const TextureCreateInfo &info) override;
+    RenderTarget createRenderTarget(const RenderTargetCreateInfo &info) override;
+
     void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) override;
     void writeTexture2D(Texture texture, int x, int y, int w, int h, PixelFormat format, const void *data) override;
     void writeTextureCube(Texture texture, int face, int x, int y, int w, int h, PixelFormat format, const void *data) override;
@@ -210,14 +213,14 @@ public:
     void mode(int width, int height) override;
 
 public:
+    DeviceCreateInfo create_info;
     int32_t max_vbo_bindings;
-    uint32_t idbo;
     DeviceInfo info;
     VBOBinding *vbos;
     Pipeline_S bound_pipeline;
     Pipeline_S null_pipeline;
     std::vector<Pipeline_S *> pipelines;
     std::vector<Buffer_S *> buffers;
-    std::vector<GLCommandList *> commandlists;
+    std::vector<CommandListImpl *> commandlists;
 };
 } // namespace uvre

@@ -24,14 +24,14 @@ struct ColorAttachment final {
     Texture color;
 };
 
-struct ShaderInfo final {
+struct ShaderCreateInfo final {
     ShaderStage stage;
     ShaderFormat format;
     size_t code_size { 0 };
     const void *code;
 };
 
-struct PipelineInfo final {
+struct PipelineCreateInfo final {
     struct {
         bool enabled;
         BlendEquation equation;
@@ -56,13 +56,13 @@ struct PipelineInfo final {
     Shader *shaders;
 };
 
-struct BufferInfo final {
+struct BufferCreateInfo final {
     BufferType type;
     size_t size;
     const void *data { nullptr };
 };
 
-struct SamplerInfo final {
+struct SamplerCreateInfo final {
     SamplerFlags flags;
     float aniso_level { 0.0f };
     float min_lod { -1000.0f };
@@ -70,7 +70,7 @@ struct SamplerInfo final {
     float lod_bias { 0.0f };
 };
 
-struct TextureInfo final {
+struct TextureCreateInfo final {
     TextureType type;
     PixelFormat format;
     int width;
@@ -79,15 +79,36 @@ struct TextureInfo final {
     size_t mip_levels { 0 };
 };
 
-struct RenderTargetInfo final {
+struct RenderTargetCreateInfo final {
     Texture depth_attachment { nullptr };
     Texture stencil_attachment { nullptr };
     size_t num_color_attachments;
     const ColorAttachment *color_attachments;
 };
 
-struct BackendInfo final {
-    BackendFamily family;
+struct DeviceInfo final {
+    ImplFamily impl_family;
+    int impl_version_major;
+    int impl_version_minor;
+    bool supports_anisotropic;
+    bool supports_storage_buffers;
+    bool supports_shader_format[static_cast<int>(ShaderFormat::NUM_SHADER_FORMATS)];
+};
+
+struct DebugMessageInfo;
+struct DeviceCreateInfo final {
+    struct {
+        void *user_data;
+        void *(*getProcAddr)(void *user_data, const char *procname);
+        void (*makeContextCurrent)(void *user_data);
+        void (*setSwapInterval)(void *user_data, int interval);
+        void (*swapBuffers)(void *user_data);
+    } gl;
+    void (*onDebugMessage)(const DebugMessageInfo &msg);
+};
+
+struct ImplInfo final {
+    ImplFamily family;
     struct {
         bool core_profile;
         int version_major;
@@ -95,27 +116,23 @@ struct BackendInfo final {
     } gl;
 };
 
-struct DeviceInfo final {
-    struct {
-        void *user_data;
-        void*(*getProcAddr)(void *user_data, const char *procname);
-        void(*makeContextCurrent)(void *user_data);
-        void(*setSwapInterval)(void *user_data, int interval);
-        void(*swapBuffers)(void *user_data);
-    } gl;
-    void(*onMessage)(const char *message);
+struct DebugMessageInfo final {
+    DebugMessageLevel level;
+    const char *text;
 };
 
 class IRenderDevice {
 public:
     virtual ~IRenderDevice() = default;
 
-    virtual Shader createShader(const ShaderInfo &info) = 0;
-    virtual Pipeline createPipeline(const PipelineInfo &info) = 0;
-    virtual Buffer createBuffer(const BufferInfo &info) = 0;
-    virtual Sampler createSampler(const SamplerInfo &info) = 0;
-    virtual Texture createTexture(const TextureInfo &info) = 0;
-    virtual RenderTarget createRenderTarget(const RenderTargetInfo &info) = 0;
+    virtual const DeviceInfo &getInfo() const = 0;
+
+    virtual Shader createShader(const ShaderCreateInfo &info) = 0;
+    virtual Pipeline createPipeline(const PipelineCreateInfo &info) = 0;
+    virtual Buffer createBuffer(const BufferCreateInfo &info) = 0;
+    virtual Sampler createSampler(const SamplerCreateInfo &info) = 0;
+    virtual Texture createTexture(const TextureCreateInfo &info) = 0;
+    virtual RenderTarget createRenderTarget(const RenderTargetCreateInfo &info) = 0;
 
     virtual void writeBuffer(Buffer buffer, size_t offset, size_t size, const void *data) = 0;
     virtual void writeTexture2D(Texture texture, int x, int y, int w, int h, PixelFormat format, const void *data) = 0;
@@ -134,7 +151,7 @@ public:
     virtual void mode(int width, int height) = 0;
 };
 
-UVRE_API void pollBackendInfo(BackendInfo &info);
-UVRE_API IRenderDevice *createDevice(const DeviceInfo &info);
+UVRE_API void pollImplInfo(ImplInfo &info);
+UVRE_API IRenderDevice *createDevice(const DeviceCreateInfo &info);
 UVRE_API void destroyDevice(IRenderDevice *device);
 } // namespace uvre

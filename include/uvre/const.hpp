@@ -43,7 +43,8 @@ enum class ShaderStage {
 
 enum class ShaderFormat {
     BINARY_SPIRV,
-    SOURCE_GLSL
+    SOURCE_GLSL,
+    NUM_SHADER_FORMATS
 };
 
 enum class TextureType {
@@ -136,7 +137,15 @@ enum class FillMode {
     WIREFRAME
 };
 
-enum class BackendFamily {
+enum class DebugMessageLevel {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR
+};
+
+enum class ImplFamily {
     OPENGL
 };
 

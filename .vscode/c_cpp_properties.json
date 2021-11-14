@@ -5,7 +5,7 @@
             "includePath": [
                 "${default}",
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/gl_46/glad/include",
+                "${workspaceFolder}/gl_33/glad/include",
                 "${workspaceFolder}/examples/glfw/include"
             ],
             "defines": [

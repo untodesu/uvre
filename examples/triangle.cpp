@@ -21,20 +21,24 @@ struct vertex final {
 static const char *vert_source = R"(
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 texcoord;
-layout(location = 0) out vec2 fs_texcoord;
+out VS_OUTPUT {
+    vec2 texcoord;
+} vert;
 void main()
 {
-    fs_texcoord = texcoord;
+    vert.texcoord = texcoord;
     gl_Position = vec4(position, 0.0, 1.0);
 })";
 
 // Fragment shader source
 static const char *frag_source = R"(
-layout(location = 0) in vec2 texcoord;
-layout(location = 0) out vec4 fs_target;
+layout(location = 0) out vec4 target;
+in VS_OUTPUT {
+    vec2 texcoord;
+} vert;
 void main()
 {
-    fs_target = vec4(texcoord, 1.0, 1.0);
+    target = vec4(vert.texcoord, 1.0, 1.0);
 })";
 
 // GLFW error callback
@@ -254,7 +258,7 @@ int main()
 
             // Copy or "blit" the render target to the screen.
             // We'll leave a small 16px gap to indicate that it works.
-            commands->copyRenderTarget(target, nullptr, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 16, 16, WINDOW_WIDTH - 16, WINDOW_HEIGHT - 16, uvre::RT_COLOR_BUFFER, true);
+            commands->copyRenderTarget(target, nullptr, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 32, 32, WINDOW_WIDTH - 32, WINDOW_HEIGHT - 32, uvre::RT_COLOR_BUFFER, true);
 
             // Finish recording and submit the command list.
             // This does nothing for OpenGL.

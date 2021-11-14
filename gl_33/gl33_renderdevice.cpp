@@ -8,7 +8,7 @@
  */
 #include <cstring>
 #include <functional>
-#include "gl46_private.hpp"
+#include "gl33_private.hpp"
 
 static uvre::VertexArray_S dummy_vao = { 0, 0, 0, nullptr };
 
@@ -37,7 +37,7 @@ static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum severity, GL
 
 static void destroyShader(uvre::Shader_S *shader)
 {
-    glDeleteProgram(shader->prog);
+    glDeleteShader(shader->shader);
     delete shader;
 }
 
@@ -59,7 +59,7 @@ static void destroyPipeline(uvre::Pipeline_S *pipeline, uvre::RenderDeviceImpl *
         node = next;
     }
 
-    glDeleteProgramPipelines(1, &pipeline->ppobj);
+    glDeleteProgram(pipeline->program);
     delete pipeline;
 }
 
@@ -105,9 +105,8 @@ uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceCreateInfo &create_in
     info.impl_family = uvre::ImplFamily::OPENGL;
     info.impl_version_major = 4;
     info.impl_version_minor = 5;
-    info.supports_anisotropic = true;
-    info.supports_storage_buffers = true;
-    info.supports_shader_format[static_cast<int>(uvre::ShaderFormat::BINARY_SPIRV)] = true;
+    info.supports_anisotropic = false;
+    info.supports_storage_buffers = false;
     info.supports_shader_format[static_cast<int>(uvre::ShaderFormat::SOURCE_GLSL)] = true;
 
     null_pipeline.blending.enabled = false;
@@ -156,20 +155,17 @@ const uvre::DeviceInfo &uvre::RenderDeviceImpl::getInfo() const
 uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderCreateInfo &info)
 {
     std::stringstream ss;
-    ss << "#version 460 core" << std::endl;
+    ss << "#version 330 core" << std::endl;
     ss << "#define _UVRE_ 1" << std::endl;
 
     uint32_t stage = 0;
-    uint32_t stage_bit = 0;
     switch(info.stage) {
         case uvre::ShaderStage::VERTEX:
             stage = GL_VERTEX_SHADER;
-            stage_bit = GL_VERTEX_SHADER_BIT;
             ss << "#define _VERTEX_SHADER_ 1" << std::endl;
             break;
         case uvre::ShaderStage::FRAGMENT:
             stage = GL_FRAGMENT_SHADER;
-            stage_bit = GL_FRAGMENT_SHADER_BIT;
             ss << "#define _FRAGMENT_SHADER_ 1" << std::endl;
             break;
     }
@@ -181,22 +177,8 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderCreateInfo &
     std::string source;
 
     switch(info.format) {
-        case uvre::ShaderFormat::BINARY_SPIRV:
-            glShaderBinary(1, &shobj, GL_SHADER_BINARY_FORMAT_SPIR_V, info.code, static_cast<GLsizei>(info.code_size));
-            glSpecializeShader(shobj, "main", 0, nullptr, nullptr);
-            break;
         case uvre::ShaderFormat::SOURCE_GLSL:
             ss << "#define _GLSL_ 1" << std::endl;
-            if(info.stage == uvre::ShaderStage::VERTEX) {
-                // For some unknown reason Khronos decided that
-                // gl_PerVertex needs to be defined manually for
-                // separate programs. I really don't know. Too bad!
-                ss << "out gl_PerVertex {"          << std::endl;
-                ss << " vec4 gl_Position;"          << std::endl;
-                ss << " float gl_PointSize;"        << std::endl;
-                ss << " float gl_ClipDistance[];"   << std::endl;
-                ss << "};"                          << std::endl;
-            }
             source = ss.str() + reinterpret_cast<const char *>(info.code);
             source_cstr = source.c_str();
             glShaderSource(shobj, 1, &source_cstr, nullptr);
@@ -226,35 +208,9 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderCreateInfo &
         return nullptr;
     }
 
-    uint32_t prog = glCreateProgram();
-    glProgramParameteri(prog, GL_PROGRAM_SEPARABLE, GL_TRUE);
-    glAttachShader(prog, shobj);
-    glLinkProgram(prog);
-    glDeleteShader(shobj);
-
-    if(create_info.onDebugMessage) {
-        glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &info_log_length);
-        if(info_log_length > 1) {
-            info_log.resize(info_log_length);
-            glGetProgramInfoLog(prog, static_cast<GLsizei>(info_log.size()), nullptr, &info_log[0]);
-
-            uvre::DebugMessageInfo msg = {};
-            msg.level = uvre::DebugMessageLevel::INFO;
-            msg.text = info_log.c_str();
-            create_info.onDebugMessage(msg);
-        }
-    }
-
-    glGetProgramiv(prog, GL_LINK_STATUS, &status);
-    if(!status) {
-        glDeleteProgram(prog);
-        return nullptr;
-    }
-
     uvre::Shader shader(new uvre::Shader_S, destroyShader);
-    shader->prog = prog;
+    shader->shader = shobj;
     shader->stage = info.stage;
-    shader->stage_bit = stage_bit;
 
     return shader;
 }
@@ -417,17 +373,18 @@ static inline uint32_t getFillMode(uvre::FillMode mode)
 static inline void setVertexFormat(uvre::VertexArray_S *vao, const uvre::Pipeline_S *pipeline)
 {
     if(vao && vao != &dummy_vao) {
+        glBindVertexArray(vao->vaobj);
         for(size_t i = 0; i < pipeline->num_attributes; i++) {
             uvre::VertexAttrib &attrib = pipeline->attributes[i];
-            glEnableVertexArrayAttrib(vao->vaobj, attrib.id);
+            glEnableVertexAttribArray(attrib.id);
             switch(attrib.type) {
                 case uvre::VertexAttribType::FLOAT32:
-                    glVertexArrayAttribFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
+                    glVertexAttribFormat(attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), attrib.normalized ? GL_TRUE : GL_FALSE, static_cast<GLuint>(attrib.offset));
                     break;
                 case uvre::VertexAttribType::SIGNED_INT32:
                 case uvre::VertexAttribType::UNSIGNED_INT32:
                     // Oh, OpenGL, you did it again. You shat itself.
-                    glVertexArrayAttribIFormat(vao->vaobj, attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), static_cast<GLuint>(attrib.offset));
+                    glVertexAttribIFormat(attrib.id, static_cast<GLint>(attrib.count), getAttribType(attrib.type), static_cast<GLuint>(attrib.offset));
                     break;
             }
         }
@@ -444,7 +401,7 @@ static inline uvre::VertexArray_S *getVertexArray(uvre::VertexArray_S **head, ui
 
     uvre::VertexArray_S *next = new uvre::VertexArray_S;
     next->index = (*head)->index + 1;
-    glCreateVertexArrays(1, &next->vaobj);
+    glGenVertexArrays(1, &next->vaobj);
     next->vbobj = 0;
     setVertexFormat(next, pipeline);
     next->next = *head;
@@ -456,7 +413,32 @@ uvre::Pipeline uvre::RenderDeviceImpl::createPipeline(const uvre::PipelineCreate
 {
     uvre::Pipeline pipeline(new uvre::Pipeline_S, std::bind(destroyPipeline, std::placeholders::_1, this));
 
-    glCreateProgramPipelines(1, &pipeline->ppobj);
+    pipeline->program = glCreateProgram();
+    for(size_t i = 0; i < info.num_shaders; i++)
+        glAttachShader(pipeline->program, info.shaders[i]->shader);
+    glLinkProgram(pipeline->program);
+
+    if(create_info.onDebugMessage) {
+        int info_log_length;
+        std::string info_log;
+        glGetProgramiv(pipeline->program, GL_INFO_LOG_LENGTH, &info_log_length);
+        if(info_log_length > 1) {
+            info_log.resize(info_log_length);
+            glGetProgramInfoLog(pipeline->program, static_cast<GLsizei>(info_log.size()), nullptr, &info_log[0]);
+
+            uvre::DebugMessageInfo msg = {};
+            msg.level = uvre::DebugMessageLevel::INFO;
+            msg.text = info_log.c_str();
+            create_info.onDebugMessage(msg);
+        }
+    }
+
+    int status;
+    glGetProgramiv(pipeline->program, GL_LINK_STATUS, &status);
+    if(!status) {
+        pipeline = nullptr;
+        return nullptr;
+    }
 
     pipeline->bound_ibo = 0;
     pipeline->bound_vao = 0;
@@ -480,21 +462,15 @@ uvre::Pipeline uvre::RenderDeviceImpl::createPipeline(const uvre::PipelineCreate
 
     pipeline->vaos = new uvre::VertexArray_S;
     pipeline->vaos->index = 0;
-    glCreateVertexArrays(1, &pipeline->vaos->vaobj);
+    glGenVertexArrays(1, &pipeline->vaos->vaobj);
     pipeline->vaos->next = nullptr;
     setVertexFormat(pipeline->vaos, pipeline.get());
-
-    for(size_t i = 0; i < info.num_shaders; i++) {
-        if(info.shaders[i]) {
-            // Use this shader stage
-            glUseProgramStages(pipeline->ppobj, info.shaders[i]->stage_bit, info.shaders[i]->prog);
-        }
-    }
 
     // Notify the buffers
     for(uvre::Buffer_S *buffer : buffers) {
         // offset is zero and that is hardcoded
-        glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline.get())->vaobj, buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+        glBindVertexArray(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline.get())->vaobj);
+        glBindVertexBuffer(buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
     }
 
     // Add ourselves to the notify list.
@@ -523,7 +499,7 @@ uvre::Buffer uvre::RenderDeviceImpl::createBuffer(const uvre::BufferCreateInfo &
 {
     uvre::Buffer buffer(new uvre::Buffer_S, std::bind(destroyBuffer, std::placeholders::_1, this));
 
-    glCreateBuffers(1, &buffer->bufobj);
+    glGenBuffers(1, &buffer->bufobj);
 
     buffer->size = info.size;
     buffer->vbo = nullptr;
@@ -535,14 +511,16 @@ uvre::Buffer uvre::RenderDeviceImpl::createBuffer(const uvre::BufferCreateInfo &
         // Notify the pipeline objects
         for(uvre::Pipeline_S *pipeline : pipelines) {
             // offset is zero and that is hardcoded
-            glVertexArrayVertexBuffer(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline)->vaobj, buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
+            glBindVertexArray(getVertexArray(&pipeline->vaos, buffer->vbo->index / max_vbo_bindings, pipeline)->vaobj);
+            glBindVertexBuffer(buffer->vbo->index % max_vbo_bindings, buffer->bufobj, 0, static_cast<GLsizei>(pipeline->vertex_stride));
         }
 
         // Add ourselves to the notify list
         buffers.push_back(buffer.get());
     }
 
-    glNamedBufferStorage(buffer->bufobj, static_cast<GLsizeiptr>(buffer->size), info.data, GL_DYNAMIC_STORAGE_BIT);
+    glBindBuffer(GL_COPY_READ_BUFFER, buffer->bufobj);
+    glBufferData(GL_COPY_READ_BUFFER, static_cast<GLsizeiptr>(buffer->size), info.data, GL_DYNAMIC_DRAW);
     return buffer;
 }
 
@@ -550,21 +528,20 @@ void uvre::RenderDeviceImpl::writeBuffer(uvre::Buffer buffer, size_t offset, siz
 {
     if(offset + size > buffer->size)
         return;
-    glNamedBufferSubData(buffer->bufobj, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
+    glBindBuffer(GL_COPY_READ_BUFFER, buffer->bufobj);
+    glBufferSubData(GL_COPY_READ_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 }
 
 uvre::Sampler uvre::RenderDeviceImpl::createSampler(const uvre::SamplerCreateInfo &info)
 {
     uint32_t ssobj;
-    glCreateSamplers(1, &ssobj);
+    glGenSamplers(1, &ssobj);
 
     glSamplerParameteri(ssobj, GL_TEXTURE_WRAP_S, (info.flags & SAMPLER_CLAMP_S) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
     glSamplerParameteri(ssobj, GL_TEXTURE_WRAP_T, (info.flags & SAMPLER_CLAMP_T) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
     glSamplerParameteri(ssobj, GL_TEXTURE_WRAP_R, (info.flags & SAMPLER_CLAMP_R) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
 
     if(info.flags & SAMPLER_FILTER) {
-        if(info.flags & SAMPLER_FILTER_ANISO)
-            glSamplerParameterf(ssobj, GL_TEXTURE_MAX_ANISOTROPY, info.aniso_level);
         glSamplerParameterf(ssobj, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glSamplerParameterf(ssobj, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
@@ -681,20 +658,27 @@ uvre::Texture uvre::RenderDeviceImpl::createTexture(const uvre::TextureCreateInf
 {
     uint32_t texobj;
     uint32_t format = getInternalFormat(info.format);
+    uint32_t target;
     int32_t mip_levels = std::max<int32_t>(1, static_cast<int32_t>(info.mip_levels));
 
+    // TODO: account mip levels somehow
+
+    glGenTextures(1, &texobj);
     switch(info.type) {
         case uvre::TextureType::TEXTURE_2D:
-            glCreateTextures(GL_TEXTURE_2D, 1, &texobj);
-            glTextureStorage2D(texobj, mip_levels, format, info.width, info.height);
+            target = GL_TEXTURE_2D;
+            glBindTexture(target, texobj);
+            glTexImage2D(target, 0, format, info.width, info.height, 0, GL_RED, GL_FLOAT, nullptr);
             break;
         case uvre::TextureType::TEXTURE_CUBE:
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texobj);
-            glTextureStorage2D(texobj, mip_levels, format, info.width, info.height);
+            target = GL_TEXTURE_CUBE_MAP;
+            glBindTexture(target, texobj);
+            glTexImage2D(target, 0, format, info.width, info.height, 0, GL_RED, GL_FLOAT, nullptr);
             break;
         case uvre::TextureType::TEXTURE_ARRAY:
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texobj);
-            glTextureStorage3D(texobj, mip_levels, format, info.width, info.height, info.depth);
+            target = GL_TEXTURE_2D_ARRAY;
+            glBindTexture(target, texobj);
+            glTexImage3D(target, 0, format, info.width, info.height, info.depth, 0, GL_RED, GL_FLOAT, nullptr);
             break;
         default:
             return nullptr;
@@ -703,6 +687,7 @@ uvre::Texture uvre::RenderDeviceImpl::createTexture(const uvre::TextureCreateInf
     uvre::Texture texture(new uvre::Texture_S, destroyTexture);
     texture->texobj = texobj;
     texture->format = format;
+    texture->target = target;
     texture->width = info.width;
     texture->height = info.height;
     texture->depth = info.depth;
@@ -828,7 +813,8 @@ void uvre::RenderDeviceImpl::writeTexture2D(uvre::Texture texture, int x, int y,
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
         return;
-    glTextureSubImage2D(texture->texobj, 0, x, y, w, h, fmt, type, data);
+    glBindTexture(GL_TEXTURE_2D, texture->texobj);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, fmt, type, data);
 }
 
 void uvre::RenderDeviceImpl::writeTextureCube(uvre::Texture texture, int face, int x, int y, int w, int h, uvre::PixelFormat format, const void *data)
@@ -836,7 +822,8 @@ void uvre::RenderDeviceImpl::writeTextureCube(uvre::Texture texture, int face, i
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type))
         return;
-    glTextureSubImage3D(texture->texobj, 0, x, y, face, w, h, 1, fmt, type, data);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texture->texobj);
+    glTexSubImage3D(GL_TEXTURE_CUBE_MAP, 0, x, y, face, w, h, 1, fmt, type, data);
 }
 
 void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
@@ -844,21 +831,25 @@ void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int
     uint32_t fmt, type;
     if(!getExternalFormat(format, fmt, type)) 
         return;
-    glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture->texobj);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, x, y, z, w, h, d, fmt, type, data);
 }
 
 uvre::RenderTarget uvre::RenderDeviceImpl::createRenderTarget(const uvre::RenderTargetCreateInfo &info)
 {
     uint32_t fbobj;
-    glCreateFramebuffers(1, &fbobj);
-    if(info.depth_attachment)
-        glNamedFramebufferTexture(fbobj, GL_DEPTH_ATTACHMENT, info.depth_attachment->texobj, 0);
-    if(info.stencil_attachment)
-        glNamedFramebufferTexture(fbobj, GL_STENCIL_ATTACHMENT, info.stencil_attachment->texobj, 0);
-    for(size_t i = 0; i < info.num_color_attachments; i++)
-        glNamedFramebufferTexture(fbobj, GL_COLOR_ATTACHMENT0 + info.color_attachments[i].id, info.color_attachments[i].color->texobj, 0);
+    glGenFramebuffers(1, &fbobj);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, fbobj);
 
-    if(glCheckNamedFramebufferStatus(fbobj, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    if(info.depth_attachment)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, info.depth_attachment->texobj, 0);
+    if(info.stencil_attachment)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, info.stencil_attachment->texobj, 0);
+    for(size_t i = 0; i < info.num_color_attachments; i++)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + info.color_attachments[i].id, GL_TEXTURE_2D, info.color_attachments[i].color->texobj, 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         glDeleteFramebuffers(1, &fbobj);
         return nullptr;
     }
@@ -895,6 +886,7 @@ void uvre::RenderDeviceImpl::startRecording(uvre::ICommandList *commands)
 
 void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
 {
+    int32_t last_binding;
     uvre::CommandListImpl *glcommands = static_cast<uvre::CommandListImpl *>(commands);
     for(size_t i = 0; i < glcommands->num_commands; i++) {
         const uvre::Command &cmd = glcommands->commands[i];
@@ -932,10 +924,7 @@ void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
                     glFrontFace(bound_pipeline.face_culling.front_face);
                 }
                 glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline.fill_mode);
-                glBindProgramPipeline(bound_pipeline.ppobj);
-                break;
-            case uvre::CommandType::BIND_STORAGE_BUFFER:
-                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, cmd.bind_index, cmd.object);
+                glUseProgram(bound_pipeline.program);
                 break;
             case uvre::CommandType::BIND_UNIFORM_BUFFER:
                 glBindBufferBase(GL_UNIFORM_BUFFER, cmd.bind_index, cmd.object);
@@ -952,24 +941,30 @@ void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
                 if(vaonode->vbobj != cmd.buffer.bufobj) {
                     vaonode->vbobj = cmd.buffer.bufobj;
                     for(size_t j = 0; j < bound_pipeline.num_attributes; j++)
-                        glVertexArrayAttribBinding(vaonode->vaobj, bound_pipeline.attributes[j].id, cmd.buffer.vbo->index % max_vbo_bindings);
-                    glVertexArrayElementBuffer(vaonode->vaobj, bound_pipeline.bound_ibo);
+                        glVertexAttribBinding(bound_pipeline.attributes[j].id, cmd.buffer.vbo->index % max_vbo_bindings);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bound_pipeline.bound_ibo);
                 }
                 break;
             case uvre::CommandType::BIND_SAMPLER:
                 glBindSampler(cmd.bind_index, cmd.object);
                 break;
             case uvre::CommandType::BIND_TEXTURE:
-                glBindTextureUnit(cmd.bind_index, cmd.object);
+                glActiveTexture(GL_TEXTURE0 + cmd.bind_index);
+                glBindTexture(cmd.tex_target, cmd.object);
                 break;
             case uvre::CommandType::BIND_RENDER_TARGET:
                 glBindFramebuffer(GL_FRAMEBUFFER, cmd.object);
                 break;
             case uvre::CommandType::WRITE_BUFFER:
-                glNamedBufferSubData(cmd.buffer_write.buffer, static_cast<GLintptr>(cmd.buffer_write.offset), static_cast<GLsizeiptr>(cmd.buffer_write.size), cmd.buffer_write.data_ptr);
+                glBindBuffer(GL_COPY_READ_BUFFER, cmd.buffer_write.buffer);
+                glBufferSubData(GL_COPY_READ_BUFFER, static_cast<GLintptr>(cmd.buffer_write.offset), static_cast<GLsizeiptr>(cmd.buffer_write.size), cmd.buffer_write.data_ptr);
                 break;
             case uvre::CommandType::COPY_RENDER_TARGET:
-                glBlitNamedFramebuffer(cmd.rt_copy.src, cmd.rt_copy.dst, cmd.rt_copy.sx0, cmd.rt_copy.sy0, cmd.rt_copy.sx1, cmd.rt_copy.sy1, cmd.rt_copy.dx0, cmd.rt_copy.dy0, cmd.rt_copy.dx1, cmd.rt_copy.dy1, cmd.rt_copy.mask, cmd.rt_copy.filter);
+                glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_binding);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, cmd.rt_copy.src);
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, cmd.rt_copy.dst);
+                glBlitFramebuffer(cmd.rt_copy.sx0, cmd.rt_copy.sy0, cmd.rt_copy.sx1, cmd.rt_copy.sy1, cmd.rt_copy.dx0, cmd.rt_copy.dy0, cmd.rt_copy.dx1, cmd.rt_copy.dy1, cmd.rt_copy.mask, cmd.rt_copy.filter);
+                glBindFramebuffer(GL_FRAMEBUFFER, static_cast<uint32_t>(last_binding));
                 break;
             case uvre::CommandType::DRAW:
                 glDrawArraysInstancedBaseInstance(bound_pipeline.primitive_mode, cmd.draw.a.base_vertex, cmd.draw.a.vertices, cmd.draw.a.instances, cmd.draw.a.base_instance);

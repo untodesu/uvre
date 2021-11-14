@@ -90,6 +90,7 @@ struct DeviceInfo final {
     ImplFamily impl_family;
     int impl_version_major;
     int impl_version_minor;
+    bool supports_anisotropic;
     bool supports_storage_buffers;
     bool supports_shader_format[static_cast<int>(ShaderFormat::NUM_SHADER_FORMATS)];
 };

@@ -60,6 +60,14 @@ void uvre::CommandListImpl::setViewport(int x, int y, int width, int height)
     pushCommand(commands, cmd, num_commands++);
 }
 
+void uvre::CommandListImpl::setClearDepth(float d)
+{
+    uvre::Command cmd = {};
+    cmd.type = uvre::CommandType::SET_CLEAR_DEPTH;
+    cmd.depth = d;
+    pushCommand(commands, cmd, num_commands++);
+}
+
 void uvre::CommandListImpl::setClearColor3f(float r, float g, float b)
 {
     uvre::Command cmd = {};

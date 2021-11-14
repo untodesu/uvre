@@ -54,6 +54,7 @@ struct Pipeline_S final {
         uint32_t front_face;
         uint32_t cull_face;
     } face_culling;
+    bool scissor_test;
     size_t index_size;
     uint32_t index_type;
     uint32_t primitive_mode;
@@ -90,6 +91,7 @@ enum class CommandType {
     SET_SCISSOR,
     SET_VIEWPORT,
     SET_CLEAR_COLOR,
+    SET_CLEAR_DEPTH,
     CLEAR,
     BIND_PIPELINE,
     BIND_STORAGE_BUFFER,
@@ -130,6 +132,7 @@ struct Command final {
             int w, h;
         } scvp;
         float color[4];
+        float depth;
         uint32_t clear_mask;
         Pipeline_S pipeline;
         Buffer_S buffer;
@@ -159,6 +162,7 @@ public:
     void setScissor(int x, int y, int width, int height) override;
     void setViewport(int x, int y, int width, int height) override;
 
+    void setClearDepth(float d) override;
     void setClearColor3f(float r, float g, float b) override;
     void setClearColor4f(float r, float g, float b, float a) override;
     void clear(RenderTargetMask mask) override;

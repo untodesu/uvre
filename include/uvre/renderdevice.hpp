@@ -46,6 +46,7 @@ struct PipelineCreateInfo final {
         bool enabled;
         CullFlags flags;
     } face_culling;
+    bool scissor_test;
     IndexType index_type;
     PrimitiveMode primitive_mode;
     FillMode fill_mode;

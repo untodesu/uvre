@@ -906,6 +906,9 @@ void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
             case uvre::CommandType::SET_VIEWPORT:
                 glViewport(cmd.scvp.x, cmd.scvp.y, cmd.scvp.w, cmd.scvp.h);
                 break;
+            case uvre::CommandType::SET_CLEAR_DEPTH:
+                glClearDepth(static_cast<GLdouble>(cmd.depth));
+                break;
             case uvre::CommandType::SET_CLEAR_COLOR:
                 glClearColor(cmd.color[0], cmd.color[1], cmd.color[2], cmd.color[3]);
                 break;
@@ -917,6 +920,7 @@ void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
                 glDisable(GL_BLEND);
                 glDisable(GL_DEPTH_TEST);
                 glDisable(GL_CULL_FACE);
+                glDisable(GL_SCISSOR_TEST);
                 if(bound_pipeline.blending.enabled) {
                     glEnable(GL_BLEND);
                     glBlendEquation(bound_pipeline.blending.equation);
@@ -931,6 +935,8 @@ void uvre::RenderDeviceImpl::submit(uvre::ICommandList *commands)
                     glCullFace(bound_pipeline.face_culling.cull_face);
                     glFrontFace(bound_pipeline.face_culling.front_face);
                 }
+                if(bound_pipeline.scissor_test)
+                    glEnable(GL_SCISSOR_TEST);
                 glPolygonMode(GL_FRONT_AND_BACK, bound_pipeline.fill_mode);
                 glUseProgram(bound_pipeline.program);
                 break;

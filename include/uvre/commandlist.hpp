@@ -17,6 +17,7 @@ public:
     virtual void setScissor(int x, int y, int width, int height) = 0;
     virtual void setViewport(int x, int y, int width, int height) = 0;
 
+    virtual void setClearDepth(float d) = 0;
     virtual void setClearColor3f(float r, float g, float b) = 0;
     virtual void setClearColor4f(float r, float g, float b, float a) = 0;
     virtual void clear(RenderTargetMask mask) = 0;

@@ -837,7 +837,7 @@ void uvre::RenderDeviceImpl::writeTextureCube(uvre::Texture texture, int face, i
 void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
-    if(!getExternalFormat(format, fmt, type)) 
+    if(!getExternalFormat(format, fmt, type))
         return;
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture->texobj);
     glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, x, y, z, w, h, d, fmt, type, data);
@@ -847,7 +847,7 @@ uvre::RenderTarget uvre::RenderDeviceImpl::createRenderTarget(const uvre::Render
 {
     uint32_t fbobj;
     glGenFramebuffers(1, &fbobj);
-    
+
     glBindFramebuffer(GL_FRAMEBUFFER, fbobj);
 
     if(info.depth_attachment)

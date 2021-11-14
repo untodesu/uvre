@@ -99,12 +99,12 @@ struct DebugMessageInfo;
 struct DeviceCreateInfo final {
     struct {
         void *user_data;
-        void*(*getProcAddr)(void *user_data, const char *procname);
-        void(*makeContextCurrent)(void *user_data);
-        void(*setSwapInterval)(void *user_data, int interval);
-        void(*swapBuffers)(void *user_data);
+        void *(*getProcAddr)(void *user_data, const char *procname);
+        void (*makeContextCurrent)(void *user_data);
+        void (*setSwapInterval)(void *user_data, int interval);
+        void (*swapBuffers)(void *user_data);
     } gl;
-    void(*onDebugMessage)(const DebugMessageInfo &msg);
+    void (*onDebugMessage)(const DebugMessageInfo &msg);
 };
 
 struct ImplInfo final {

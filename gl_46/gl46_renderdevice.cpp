@@ -191,11 +191,11 @@ uvre::Shader uvre::RenderDeviceImpl::createShader(const uvre::ShaderCreateInfo &
                 // For some unknown reason Khronos decided that
                 // gl_PerVertex needs to be defined manually for
                 // separate programs. I really don't know. Too bad!
-                ss << "out gl_PerVertex {"          << std::endl;
-                ss << " vec4 gl_Position;"          << std::endl;
-                ss << " float gl_PointSize;"        << std::endl;
-                ss << " float gl_ClipDistance[];"   << std::endl;
-                ss << "};"                          << std::endl;
+                ss << "out gl_PerVertex {" << std::endl;
+                ss << " vec4 gl_Position;" << std::endl;
+                ss << " float gl_PointSize;" << std::endl;
+                ss << " float gl_ClipDistance[];" << std::endl;
+                ss << "};" << std::endl;
             }
             source = ss.str() + reinterpret_cast<const char *>(info.code);
             source_cstr = source.c_str();
@@ -842,7 +842,7 @@ void uvre::RenderDeviceImpl::writeTextureCube(uvre::Texture texture, int face, i
 void uvre::RenderDeviceImpl::writeTextureArray(uvre::Texture texture, int x, int y, int z, int w, int h, int d, uvre::PixelFormat format, const void *data)
 {
     uint32_t fmt, type;
-    if(!getExternalFormat(format, fmt, type)) 
+    if(!getExternalFormat(format, fmt, type))
         return;
     glTextureSubImage3D(texture->texobj, 0, x, y, z, w, h, d, fmt, type, data);
 }

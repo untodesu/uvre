@@ -14,25 +14,29 @@ static uvre::VertexArray_S dummy_vao = { 0, 0, 0, nullptr };
 
 static void GLAPIENTRY debugCallback(GLenum, GLenum, GLuint, GLenum severity, GLsizei, const char *message, const void *arg)
 {
-    uvre::DebugMessageInfo msg = {};
-    msg.text = message;
+    const uvre::RenderDeviceImpl *device = reinterpret_cast<const uvre::RenderDeviceImpl *>(arg);
+        if(device && device->create_info.onDebugMessage) {
 
-    switch(severity) {
-        case GL_DEBUG_SEVERITY_HIGH:
-            msg.level = uvre::DebugMessageLevel::ERROR;
-            break;
-        case GL_DEBUG_SEVERITY_MEDIUM:
-            msg.level = uvre::DebugMessageLevel::WARN;
-            break;
-        case GL_DEBUG_SEVERITY_LOW:
-            msg.level = uvre::DebugMessageLevel::INFO;
-            break;
-        case GL_DEBUG_SEVERITY_NOTIFICATION:
-            msg.level = uvre::DebugMessageLevel::DEBUG;
-            break;
+        uvre::DebugMessageInfo msg = {};
+        msg.text = message;
+
+        switch(severity) {
+            case GL_DEBUG_SEVERITY_HIGH:
+                msg.level = uvre::DebugMessageLevel::ERROR;
+                break;
+            case GL_DEBUG_SEVERITY_MEDIUM:
+                msg.level = uvre::DebugMessageLevel::WARN;
+                break;
+            case GL_DEBUG_SEVERITY_LOW:
+                msg.level = uvre::DebugMessageLevel::INFO;
+                break;
+            case GL_DEBUG_SEVERITY_NOTIFICATION:
+                msg.level = uvre::DebugMessageLevel::DEBUG;
+                break;
+        }
+
+        device->create_info.onDebugMessage(msg);
     }
-
-    reinterpret_cast<const uvre::DeviceCreateInfo *>(arg)->onDebugMessage(msg);
 }
 
 static void destroyShader(uvre::Shader_S *shader)
@@ -130,7 +134,7 @@ uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceCreateInfo &create_in
     if(create_info.onDebugMessage) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        glDebugMessageCallback(debugCallback, &create_info);
+        glDebugMessageCallback(debugCallback, this);
     }
 }
 

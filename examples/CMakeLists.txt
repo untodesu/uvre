@@ -2,8 +2,8 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-find_package(glfw3 3.3)
-if(NOT GLFW_FOUND)
+find_package(glfw3 3.3 REQUIRED)
+if(WIN32 AND NOT GLFW_FOUND)
     # I tend to store GLFW there
     add_subdirectory(glfw)
 endif()

@@ -107,8 +107,8 @@ uvre::RenderDeviceImpl::RenderDeviceImpl(const uvre::DeviceCreateInfo &create_in
 
     std::memset(&info, 0, sizeof(uvre::DeviceInfo));
     info.impl_family = uvre::ImplFamily::OPENGL;
-    info.impl_version_major = 4;
-    info.impl_version_minor = 5;
+    info.impl_version_major = 3;
+    info.impl_version_minor = 3;
     info.supports_anisotropic = false;
     info.supports_storage_buffers = false;
     info.supports_shader_format[static_cast<int>(uvre::ShaderFormat::SOURCE_GLSL)] = true;
